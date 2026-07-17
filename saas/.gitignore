@@ -1,0 +1,32 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Backups locais
+flutterflow/backups/*
+!flutterflow/backups/.gitkeep
+
+# Arquivos sensíveis
+.env
+.env.*
+*.key
+*.pem
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Pacotes
+node_modules/

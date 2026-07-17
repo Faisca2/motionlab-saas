@@ -1,0 +1,28 @@
+{
+    "color": {
+        "primary": {
+            "value": "#2563EB",
+            "type": "color"
+        },
+        "success": {
+            "value": "#10B981",
+            "type": "color"
+        },
+        "warning": {
+            "value": "#F59E0B",
+            "type": "color"
+        },
+        "danger": {
+            "value": "#EF4444",
+            "type": "color"
+        },
+        "background": {
+            "value": "#F7F8FA",
+            "type": "color"
+        },
+        "surface": {
+            "value": "#FFFFFF",
+            "type": "color"
+        }
+    }
+}
