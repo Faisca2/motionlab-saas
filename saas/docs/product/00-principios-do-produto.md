@@ -1,172 +1,222 @@
-# 00 — Princípios do Produto
+# MotionLab SaaS
 
-**Produto:** MotionLab SaaS  
-**Versão:** 0.1.0  
-**Status:** Em elaboração  
-**Responsável:** MotionLab Team  
+# Princípios do Produto
 
----
-
-## 1. Objetivo
-
-Este documento estabelece os princípios que orientam o planejamento,
-o design, a arquitetura e a implementação do MotionLab SaaS.
-
-Os princípios definidos aqui devem ser considerados antes da criação
-de qualquer módulo, tela, componente ou regra de negócio.
+Versão: 0.1.0  
+Status: Em elaboração
 
 ---
 
-## 2. Visão do produto
+# 1. Propósito
 
-O MotionLab SaaS é uma plataforma de gestão para empresas de serviços
-presenciais organizadas em uma ou múltiplas unidades.
+O MotionLab é uma plataforma SaaS White Label desenvolvida para permitir que empresas administrem sua operação de forma simples, escalável e segura.
 
-O produto deverá atender inicialmente:
+O produto deve ser capaz de atender desde um único estabelecimento até grandes redes de franquias utilizando a mesma base tecnológica.
 
-- barbearias;
-- salões de beleza;
-- clínicas;
-- podologia;
-- academias;
-- estúdios;
-- redes e franquias.
+Toda decisão técnica deve priorizar:
 
----
-
-## 3. Missão
-
-Simplificar a gestão de empresas de serviços por meio de uma plataforma
-moderna, intuitiva, segura e preparada para crescer.
+- simplicidade;
+- escalabilidade;
+- baixo custo operacional;
+- facilidade de manutenção;
+- experiência do usuário.
 
 ---
 
-## 4. Princípios
+# 2. Filosofia
 
-### 4.1 Clareza antes da beleza
+O MotionLab não é apenas um aplicativo.
 
-A interface deve ser visualmente agradável, mas sua principal função
-é tornar as informações e ações fáceis de compreender.
+É um produto.
 
-### 4.2 Cada tela deve responder a uma pergunta principal
+Toda implementação deve existir para resolver um problema do negócio.
 
-Uma tela não deverá reunir funcionalidades sem relação direta entre si.
-
-Exemplo:
-
-O Dashboard Master responde:
-
-> Como está minha rede hoje?
-
-### 4.3 Consistência vence criatividade
-
-Componentes existentes devem ser reutilizados antes da criação de
-novos padrões visuais ou comportamentais.
-
-### 4.4 Mobile First
-
-As funcionalidades devem ser planejadas inicialmente para dispositivos
-móveis e posteriormente adaptadas para tablet e desktop.
-
-### 4.5 Dados antes de gráficos
-
-Gráficos devem ajudar na interpretação dos dados, e não apenas decorar
-a interface.
-
-### 4.6 Estados fazem parte da experiência
-
-Toda funcionalidade deverá prever, quando aplicável:
-
-- carregamento;
-- ausência de dados;
-- sucesso;
-- erro;
-- falta de conexão;
-- falta de permissão.
-
-### 4.7 Arquitetura preparada para múltiplas unidades
-
-Toda decisão funcional e técnica deverá considerar a estrutura:
-
-Matriz → Filiais
-
-O sistema não deverá presumir que uma empresa possui apenas uma unidade.
-
-### 4.8 Segurança desde a modelagem
-
-Permissões, isolamento entre redes e acesso aos dados deverão ser
-considerados durante a definição das coleções e dos fluxos.
-
-### 4.9 Componentes devem ser reutilizáveis
-
-Elementos repetidos deverão ser implementados como componentes
-reutilizáveis sempre que tecnicamente viável.
-
-### 4.10 A implementação deve ser documentada
-
-Cada módulo deverá possuir, no mínimo:
-
-1. documento funcional;
-2. modelo de dados;
-3. especificação de layout;
-4. instruções de implementação no FlutterFlow.
-
-### 4.11 Decisões relevantes devem ser rastreáveis
-
-Decisões arquiteturais importantes deverão ser registradas por meio
-de Architecture Decision Records — ADRs.
-
-### 4.12 A tecnologia serve ao produto
-
-FlutterFlow, Firebase ou qualquer outra tecnologia são meios de
-implementação e poderão ser substituídos sem alterar os princípios
-fundamentais do produto.
+Nenhuma funcionalidade será desenvolvida apenas porque a tecnologia permite.
 
 ---
 
-## 5. Critérios para aprovação de uma funcionalidade
+# 3. Arquitetura antes da implementação
 
-Antes de uma funcionalidade ser considerada concluída, deverá ser
-verificado se:
+Antes de qualquer desenvolvimento deve existir:
 
-- resolve um problema real do usuário;
-- respeita o Design System;
-- considera a arquitetura Matriz → Filiais;
-- trata os estados necessários;
-- possui regras de acesso definidas;
-- utiliza nomenclatura consistente;
-- está documentada;
-- foi validada no contexto mobile;
-- não cria duplicação desnecessária de componentes.
+- definição do problema;
+- modelagem dos dados;
+- arquitetura;
+- documentação.
+
+Somente depois ocorre a implementação no FlutterFlow.
+
+O FlutterFlow é uma ferramenta de implementação e não a definição da arquitetura.
 
 ---
 
-## 6. Anti-princípios
+# 4. Simplicidade
 
-O MotionLab não deverá:
+Sempre escolher a solução mais simples capaz de atender ao problema.
 
-- criar telas apenas para preencher espaço;
-- esconder informações importantes;
-- misturar padrões visuais sem justificativa;
-- utilizar cores sem significado;
-- duplicar componentes equivalentes;
-- armazenar referências relacionais como texto sem necessidade;
-- implementar funcionalidades sem regra de acesso;
-- tratar apenas o cenário ideal;
-- depender exclusivamente do conhecimento informal dos desenvolvedores.
+Evitar:
+
+- duplicação de código;
+- duplicação de dados;
+- regras distribuídas;
+- dependências desnecessárias.
 
 ---
 
-## 7. Declaração do produto
+# 5. Escalabilidade
 
-> Não queremos apenas desenvolver um sistema.
-> Queremos construir um produto cuja evolução seja previsível,
-> documentada e sustentável.
+Toda funcionalidade deve nascer preparada para crescimento.
+
+O sistema deve permitir:
+
+- milhares de usuários;
+- múltiplas empresas;
+- múltiplas unidades;
+- evolução sem necessidade de reescrever módulos.
 
 ---
 
-## 8. Histórico de alterações
+# 6. Multi-Tenant
 
-| Versão | Data       | Alteração                         |
-|--------|------------|-----------------------------------|
-| 0.1.0  | 17/07/2026 | Criação inicial dos princípios.   |
+Toda a arquitetura foi concebida para operar com múltiplas empresas.
+
+A empresa (Rede/Franquia) é a unidade principal do sistema.
+
+Os usuários pertencem a uma empresa através de referências do Firestore.
+
+Nunca utilizar IDs em formato texto quando Document Reference puder ser utilizado.
+
+---
+
+# 7. Fonte única da verdade
+
+Cada informação deve possuir apenas um local oficial.
+
+Evitar:
+
+- sincronizações manuais;
+- dados duplicados;
+- cópias desnecessárias.
+
+---
+
+# 8. Organização
+
+Toda mudança deve possuir:
+
+- documentação;
+- versionamento;
+- histórico.
+
+Nada importante deve existir apenas dentro do FlutterFlow.
+
+---
+
+# 9. Design System
+
+Todo componente visual deve seguir um Design System único.
+
+Isso inclui:
+
+- cores;
+- tipografia;
+- espaçamentos;
+- componentes;
+- estados;
+- ícones.
+
+Nenhuma tela deve definir estilos próprios sem necessidade.
+
+---
+
+# 10. Padrão de desenvolvimento
+
+Todo desenvolvimento seguirá a sequência:
+
+Produto
+↓
+Arquitetura
+↓
+Design System
+↓
+Modelagem
+↓
+Implementação
+↓
+Testes
+↓
+Documentação
+
+---
+
+# 11. Versionamento
+
+Todo trabalho deve ser versionado.
+
+Pequenas alterações são preferíveis a grandes commits.
+
+Cada versão deve possuir histórico claro das alterações.
+
+---
+
+# 12. Segurança
+
+Segurança não é um recurso opcional.
+
+Todas as decisões devem considerar:
+
+- autenticação;
+- autorização;
+- isolamento entre empresas;
+- proteção dos dados.
+
+---
+
+# 13. Performance
+
+Performance deve ser considerada desde o início.
+
+Priorizar:
+
+- consultas eficientes;
+- reutilização de dados;
+- baixo número de leituras no Firestore;
+- componentes reutilizáveis.
+
+---
+
+# 14. Evolução contínua
+
+O produto deve permitir crescimento contínuo.
+
+Novos módulos devem ser adicionados sem modificar a arquitetura existente.
+
+---
+
+# 15. Decisões Arquiteturais
+
+Toda decisão relevante deve ser registrada.
+
+O objetivo é preservar o conhecimento do projeto.
+
+---
+
+# 16. Nosso compromisso
+
+Toda decisão dentro do MotionLab deverá responder à seguinte pergunta:
+
+> Esta solução torna o produto mais simples, mais escalável, mais seguro e mais fácil de evoluir?
+
+Se a resposta for "não", a decisão deve ser revista.
+
+---
+
+# 17. Tecnologia a serviço do negócio
+
+As decisões técnicas devem existir para atender ao negócio.
+
+Frameworks, linguagens e ferramentas podem ser substituídos ao longo do tempo.
+
+A arquitetura e o domínio do negócio devem permanecer estáveis.
+
+O valor do MotionLab está no produto, e não na tecnologia utilizada para implementá-lo.
