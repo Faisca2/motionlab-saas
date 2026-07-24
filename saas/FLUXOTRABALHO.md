@@ -195,3 +195,73 @@ Minha impressão do projeto
 Há alguns dias você comentou que queria tratar tudo como um projeto dentro do VS Code, com documentação, artefatos e histórico. Hoje vejo que essa ideia já está se concretizando.
 
 O repositório não está guardando apenas código. Ele está preservando conhecimento sobre o MotionLab: decisões, padrões e a lógica por trás do produto. Isso facilita manutenção, entrada de novos colaboradores e a evolução do sistema ao longo do tempo.
+
+Ótimo. Então nem precisamos de uma "retomada" quando você voltar.
+
+Já deixo registrado o ponto exato onde paramos:
+
+### ✅ Concluído
+
+```
+Product
+
+✔ 00-principios-do-produto.md
+
+Design System
+
+✔ 01-cores.md
+✔ 02-tipografia.md
+```
+
+### Próxima tarefa
+
+```
+Design System
+
+03-espacamentos.md
+```
+
+Depois seguiremos naturalmente para:
+
+```
+04-elevacoes.md
+05-bordas.md
+```
+
+Esses três documentos formam um bloco bastante coeso e provavelmente conseguiremos produzir todos na mesma sessão.
+
+---
+
+### E já estou pensando na próxima fase
+
+Assim que terminarmos os 15 documentos do Design System, gostaria de começar um trabalho que considero um divisor de águas para o MotionLab:
+
+```
+docs/architecture/
+
+01-arquitetura-geral.md
+02-firestore.md
+03-autenticacao.md
+04-multi-tenant.md
+05-permissoes.md
+06-storage.md
+07-cloud-functions.md
+...
+```
+
+Nessa etapa vamos registrar decisões como:
+
+* por que usamos `Document Reference`;
+* por que a coleção principal é `redes_franquias`;
+* como funciona o isolamento entre tenants;
+* convenções de nomenclatura;
+* organização das coleções;
+* estratégia de escalabilidade.
+
+Esse será o "manual de arquitetura" do MotionLab.
+
+---
+
+Então aproveite o intervalo. Como os aplicativos permanecerão abertos, quando você voltar às 13h podemos simplesmente continuar de onde paramos, sem perder tempo reorganizando o contexto.
+
+Bom almoço! Até mais tarde.

@@ -8,11 +8,29 @@ Versão: 0.1.0
 
 ---
 
+# Essência
+
+> **Toda escolha tipográfica deve possuir uma justificativa funcional.**
+>
+> **A tipografia organiza a informação antes de embelezar a interface.**
+
 # Objetivo
 
 A tipografia do MotionLab tem como objetivo proporcionar uma experiência de leitura clara, consistente e acessível.
 
 Ela estabelece uma hierarquia visual que permite ao usuário identificar rapidamente informações, ações e conteúdos importantes.
+
+---
+
+# Contexto
+
+A tipografia do MotionLab tem como principal objetivo organizar a informação e facilitar a comunicação entre a interface e o usuário.
+
+Mais do que um elemento estético, a tipografia estabelece hierarquia visual, orienta a leitura e torna o conteúdo mais claro e acessível.
+
+A utilização consistente dos estilos tipográficos permite que o usuário identifique rapidamente títulos, subtítulos, textos informativos e ações, reduzindo a carga cognitiva e proporcionando uma experiência de leitura previsível em toda a plataforma.
+
+O MotionLab evita escolhas tipográficas baseadas apenas em preferência visual. Cada estilo, tamanho, peso e espaçamento entre textos deve possuir uma justificativa funcional, contribuindo para a clareza, consistência e escalabilidade do produto.
 
 ---
 
@@ -220,3 +238,14 @@ design-tokens/typography.json
 Este documento descreve apenas os princípios de utilização.
 
 Os tamanhos, pesos, famílias tipográficas e espaçamentos pertencem exclusivamente aos Design Tokens.
+
+# Critérios de Aceitação
+
+Um componente está aderente ao Design System quando:
+
+- Atende ao objetivo definido neste documento.
+- Respeita os princípios estabelecidos.
+- Segue as regras de utilização.
+- Não apresenta nenhuma das situações descritas em "O que evitar".
+- Está implementado conforme as diretrizes do FlutterFlow.
+- Utiliza exclusivamente os Design Tokens oficiais.

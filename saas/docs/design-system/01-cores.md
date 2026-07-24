@@ -8,6 +8,12 @@ Versão: 0.1.0
 
 ---
 
+# Essência
+
+> **Toda escolha cromática deve possuir uma justificativa funcional.**
+
+> **As cores comunicam significado antes de comunicar estilo.**
+
 # Objetivo
 
 As cores do MotionLab possuem função semântica.
@@ -15,6 +21,15 @@ As cores do MotionLab possuem função semântica.
 Elas existem para comunicar estados, ações e identidade visual.
 
 Nunca devem ser utilizadas apenas por preferência estética.
+
+---
+
+# Contexto
+As cores do MotionLab seguem princípios de harmonia visual, buscando transmitir muito mais do que estilo. Elas são utilizadas como um elemento de comunicação, organização e orientação da interface.
+
+Cada cor possui um propósito definido dentro do Design System, contribuindo para estabelecer hierarquia visual, reforçar a identidade da marca e facilitar a compreensão das informações pelo usuário.
+
+O MotionLab evita a utilização de cores apenas por tendência ou costume. Toda escolha cromática deve possuir uma justificativa funcional, garantindo consistência, acessibilidade e uma experiência de uso previsível em toda a plataforma.
 
 ---
 
@@ -217,3 +232,14 @@ design-tokens/colors.json
 Este documento descreve apenas a utilização das cores.
 
 Os valores numéricos pertencem exclusivamente aos Design Tokens.
+
+# Critérios de Aceitação
+
+Um componente está aderente ao Design System quando:
+
+- Atende ao objetivo definido neste documento.
+- Respeita os princípios estabelecidos.
+- Segue as regras de utilização.
+- Não apresenta nenhuma das situações descritas em "O que evitar".
+- Está implementado conforme as diretrizes do FlutterFlow.
+- Utiliza exclusivamente os Design Tokens oficiais.
