@@ -1,5 +1,31 @@
 ### Changedlog
 
+## [0.3.1] - 2026-08-03
+
+### Added
+
+#### Produto
+
+- Definida a estrutura inicial de Personas.
+- Definido o conceito de Jornadas do Usuário.
+- Diferenciadas Jornadas Transversais e Jornadas Específicas.
+- Estabelecida a relação entre Personas, Jornadas e Módulos.
+
+#### MVP
+
+- Definido o processo de inventário técnico do projeto FlutterFlow.
+- Estabelecida a estratégia de documentação da evolução do MVP.
+
+#### Estratégia de Produto
+
+- Definida a separação entre documentação conceitual (Google Docs) e documentação técnica (VS Code).
+- Formalizado o fluxo de evolução:
+  - Ideia
+  - Discussão
+  - Documentação
+  - Implementação
+  - Validação
+
 ## [0.3.0] - 2026-07-29
 
 ### Added
