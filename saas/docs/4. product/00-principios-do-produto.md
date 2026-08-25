@@ -189,7 +189,9 @@ Priorizar:
 
 O produto deve permitir crescimento contínuo.
 
-Novos módulos devem ser adicionados sem modificar a arquitetura existente.
+Novos módulos devem respeitar os princípios arquiteturais existentes e, sempre que necessário, a arquitetura poderá evoluir de forma planejada, documentada e versionada.
+
+Evoluções devem evitar retrabalho estrutural desnecessário e preservar a compatibilidade com as funcionalidades existentes sempre que possível.
 
 ---
 
@@ -220,3 +222,39 @@ Frameworks, linguagens e ferramentas podem ser substituídos ao longo do tempo.
 A arquitetura e o domínio do negócio devem permanecer estáveis.
 
 O valor do MotionLab está no produto, e não na tecnologia utilizada para implementá-lo.
+
+---
+
+# 18. Evolução orientada por evidências
+
+A evolução do MotionLab deve ser orientada pelo uso real do produto.
+
+Decisões de melhoria devem considerar:
+
+- comportamento dos usuários;
+- dificuldades encontradas na jornada;
+- chamados de atendimento;
+- feedback dos clientes;
+- indicadores de adoção e utilização.
+
+O produto deve permitir identificar pontos de fricção e oportunidades de simplificação da operação do cliente.
+
+Sempre que possível, uma melhoria deve ser acompanhada por evidências que permitam avaliar seu impacto após a implementação.
+
+O MotionLab deve evoluir com seus clientes, aprendendo continuamente com a utilização do produto.
+
+---
+
+# 19. Entrega de valor antes da perfeição
+
+O MotionLab prioriza entregar valor real ao cliente antes de buscar a solução perfeita.
+
+Toda nova necessidade deve ser classificada como:
+
+- necessária para o MVP;
+- necessária como previsão arquitetural;
+- evolução futura de produto.
+
+Funcionalidades que não sejam necessárias para validar o produto não devem impedir sua entrada em operação.
+
+O ótimo não deve ser inimigo do bom.

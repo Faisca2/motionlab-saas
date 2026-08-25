@@ -468,3 +468,11 @@ Estado
 Nova Decisão
 
 Na minha opinião, esse último documento dá um fechamento muito elegante à camada Informação, porque ele conecta a apresentação dos dados à responsabilidade pelas ações realizadas. Em vez de tratar "estados" apenas como elementos visuais (sucesso, erro, alerta), ele os define como parte essencial do diálogo entre o operador e o sistema, reforçando a responsabilidade do primeiro e a função do segundo como executor e comunicador dos resultados.
+
+Registrado, Paulo. Amanhã, quando formos atualizar a documentação e o Git do MotionLab, recuperamos essas decisões e organizamos o registro da retomada.
+
+E, de fato, a retomada prevista para amanhã **começou hoje** — de uma maneira bastante inesperada: um vazamento de combustível acabou produzindo uma boa evolução na estratégia do SaaS. 😄
+
+Hoje não escrevemos código, mas avançamos em **modelo de parceiros, suporte N1/N2/N3, MotionLab Admin, telemetria, jornada do cliente, estratégia dos pioneiros e critérios de MVP**. Isso merece entrar no histórico do projeto.
+
+Amanhã transformamos essa conversa em documentação objetiva e fazemos o commit correspondente.
