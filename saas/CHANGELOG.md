@@ -1,5 +1,117 @@
 ### Changedlog
 
+## [0.4.0] - 2026-09-14
+
+### Added
+
+#### Dashboard Matriz
+
+- Implementada a estrutura inicial do Dashboard Matriz no FlutterFlow.
+- Implementados filtros globais de período:
+  - Hoje
+  - Semana
+  - Mês
+- Implementados filtros de faturamento:
+  - Tudo
+  - Serviço
+  - Produto
+- Implementados indicadores principais:
+  - Receitas
+  - Despesas
+  - Agendados
+- Implementadas comparações de período:
+  - Vs Ontem
+  - Vs Sem Ant
+  - Vs Mês Ant
+- Implementada seção de Filiais com indicadores operacionais:
+  - Agendado
+  - Realizado
+  - Em Atendimento
+  - Faturamento
+- Implementado gráfico de participação das filiais no faturamento utilizando gráfico de rosca.
+- Implementado gráfico de faturamento por filial utilizando gráfico de barras.
+- Implementada alternância local entre gráfico de rosca e gráfico de barras através de Page State.
+- Definida identidade visual consistente das filiais entre os diferentes gráficos.
+
+#### Arquitetura
+
+- Criado o ADR `ADR-001-agregacao-dashboard.md`.
+- Definida a estratégia de agregação para evolução dos dashboards.
+- Definido que transações e movimentações permanecem como fonte de verdade.
+- Definido que agregados são projeções otimizadas para leitura.
+- Definida a Filial como unidade persistida de agregação.
+- Definido que a Matriz não possuirá acumuladores financeiros independentes.
+- Definido que os indicadores da Matriz serão derivados dos agregados das Filiais.
+- Definida granularidade diária como estratégia inicial prevista para agregações.
+- Definidos princípios de concorrência, idempotência e reconciliação para evolução futura.
+
+#### Modelo de Dados
+
+- Criado o documento `modelo-de-dados.md`.
+- Documentado o modelo organizacional:
+  - Rede
+  - Matriz
+  - Filiais
+  - Usuários
+- Documentadas as coleções atualmente implementadas:
+  - `redes_franquias`
+  - `estabelecimentos`
+  - `users`
+- Separadas explicitamente estruturas:
+  - Implementadas
+  - Planejadas
+  - Conceituais
+- Definida conceitualmente a separação dos domínios:
+  - Financeiro
+  - Produtos
+  - Estoque
+  - Operação
+  - Dashboard
+- Definida a distinção entre produtos para revenda e produtos de consumo operacional.
+- Definida classificação inicial das despesas operacionais, incluindo:
+  - Aluguel
+  - Energia elétrica
+  - Água
+  - Internet
+  - Material de limpeza
+  - Material de uso operacional
+  - Aquisição de produtos para revenda
+- Definida a separação entre movimentações de estoque e seus respectivos efeitos financeiros.
+
+### Changed
+
+#### Design System
+
+- Atualizado o documento `10-dashboards.md` para versão 0.2.0.
+- Consolidado o Dashboard Matriz como referência prática para aplicação das diretrizes de dashboard.
+- Definidas regras para filtros, KPIs, gráficos e indicadores de Filiais.
+- Definido que alterações exclusivamente visuais entre representações do mesmo conjunto de dados não devem provocar novas consultas ao backend.
+- Reforçadas regras de responsividade e prevenção de overflow em interfaces mobile.
+
+#### Arquitetura de Dados
+
+- Evoluída a visão de dados do MotionLab para separar claramente:
+  - Fonte transacional de verdade
+  - Projeções agregadas para consulta
+  - Consolidação da Matriz
+- Definido que compras, vendas, estoque e despesas devem preservar a natureza da operação que representam.
+
+### Defined
+
+- A transação e a movimentação são as fontes de verdade.
+- O agregado é uma projeção otimizada para leitura.
+- A Filial é a unidade persistida de agregação.
+- A Matriz é uma visão consolidada derivada das Filiais.
+- Produtos para revenda e produtos de consumo operacional possuem naturezas distintas.
+- Financeiro, estoque e operação permanecem domínios separados, ainda que uma mesma operação possa produzir efeitos relacionados.
+- O MVP não deverá implementar antecipadamente infraestrutura de agregação que ainda não seja necessária para o volume atual.
+
+### Milestone
+
+Consolidada a primeira versão funcional e arquitetural do Dashboard Matriz.
+
+O projeto passa a possuir uma direção definida para evolução dos dashboards em escala, preservando o foco atual na validação do MVP e evitando antecipação desnecessária de infraestrutura.
+
 ## [0.3.1] - 2026-08-03
 
 ### Added
