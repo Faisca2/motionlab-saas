@@ -1,3 +1,46 @@
+| Collection atual        | Situação que definimos                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `redes_franquias`       | **Manter** — arquitetura atual                                                                             |
+| `estabelecimentos`      | **Manter** — arquitetura atual                                                                             |
+| `users`                 | **Manter/adaptar conforme necessidade**                                                                    |
+| `servicos`              | **Manter e adaptar** — trocar vínculo antigo com `barbearias`, acrescentar comissão padrão, auditoria etc. |
+| `profissional`          | **Legado** — conceito evolui para `colaboradores`                                                          |
+| `prestadores`           | **Legado** — duplicava o conceito de profissional                                                          |
+| `config_comissoes`      | **Legado/substituir** — serviço e produto terão novas regras                                               |
+| `produtos_estoque`      | **Manter conceito e remodelar** — separar melhor produto, movimentação e saldo                             |
+| `movimentacao_estoque`  | **Manter e adaptar**                                                                                       |
+| `agendamentos`          | **Remodelar**                                                                                              |
+| `reservas_atendimentos` | **Legado/substituir**                                                                                      |
+| `itens_servicos`        | **Legado/substituir** — sobreposição com catálogo de serviços                                              |
+| `fluxo_caixa`           | **Manter conceito e remodelar** — respeitando baixa operacional → liquidação → crédito                     |
+Sim. O que analisamos ficou suficientemente definido para retomarmos a **higienização das collections** sem recomeçar do zero.
+
+Na próxima sessão, vou considerar este quadro como nosso ponto de partida:
+
+| Collection atual        | Situação que definimos                                                                                     |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `redes_franquias`       | **Manter** — arquitetura atual                                                                             |
+| `estabelecimentos`      | **Manter** — arquitetura atual                                                                             |
+| `users`                 | **Manter/adaptar conforme necessidade**                                                                    |
+| `servicos`              | **Manter e adaptar** — trocar vínculo antigo com `barbearias`, acrescentar comissão padrão, auditoria etc. |
+| `profissional`          | **Legado** — conceito evolui para `colaboradores`                                                          |
+| `prestadores`           | **Legado** — duplicava o conceito de profissional                                                          |
+| `config_comissoes`      | **Legado/substituir** — serviço e produto terão novas regras                                               |
+| `produtos_estoque`      | **Manter conceito e remodelar** — separar melhor produto, movimentação e saldo                             |
+| `movimentacao_estoque`  | **Manter e adaptar**                                                                                       |
+| `agendamentos`          | **Remodelar**                                                                                              |
+| `reservas_atendimentos` | **Legado/substituir**                                                                                      |
+| `itens_servicos`        | **Legado/substituir** — sobreposição com catálogo de serviços                                              |
+| `fluxo_caixa`           | **Manter conceito e remodelar** — respeitando baixa operacional → liquidação → crédito                     |
+
+Além disso, já definimos conceitualmente as futuras estruturas de `colaboradores`, `colaborador_servico_config`, `disponibilidade_colaborador`, `eventos_forca_trabalho` e `tipos_evento_forca_trabalho`.
+
+E temos uma regra importante para a higienização: **não vamos simplesmente apagar as collections classificadas como legado**. Primeiro verificaremos se páginas, queries, actions ou componentes do FlutterFlow ainda dependem delas. Só depois fazemos a retirada.
+
+Então pode atualizar o Git tranquilo. Quando retornar, basta dizer algo como **“vamos continuar a higienização das collections”** que retomamos daqui.
+
+
+
 Princípios do Produto
         ↓
 Design System

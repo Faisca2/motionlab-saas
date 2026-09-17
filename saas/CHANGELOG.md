@@ -5,7 +5,29 @@
 ### Added
 
 #### Dashboard Matriz
+### Modelo de dados
 
+- Definido o modelo conceitual de `colaboradores`, substituindo progressivamente
+  os conceitos antigos de `profissional` e `prestadores`.
+- Mantida em `colaboradores` a lista de serviços habilitados para otimização das
+  consultas mais frequentes.
+- Definida `colaborador_servico_config` para exceções de duração e comissão por
+  colaborador/serviço.
+- Definida comissão padrão como atributo do serviço.
+- Definida comissão padrão sobre venda como atributo do produto, sem exceções
+  por colaborador no MVP.
+- Definido o modelo de disponibilidade recorrente dos colaboradores, permitindo
+  múltiplos períodos no mesmo dia.
+- Separados os conceitos de disponibilidade e horário efetivamente livre.
+- Introduzido o conceito de eventos de força de trabalho para ausências, férias,
+  treinamentos, reuniões e outras indisponibilidades excepcionais.
+- Definido catálogo de tipos de eventos com tipos padrão MotionLab e tipos
+  adicionais configuráveis pela Matriz.
+- Reforçada a necessidade de auditoria temporal e preservação das regras
+  efetivamente aplicadas no momento do fato gerador.
+- Classificadas `profissional`, `prestadores` e `config_comissoes` como
+  estruturas legadas a serem substituídas gradualmente.
+  
 - Implementada a estrutura inicial do Dashboard Matriz no FlutterFlow.
 - Implementados filtros globais de período:
   - Hoje
