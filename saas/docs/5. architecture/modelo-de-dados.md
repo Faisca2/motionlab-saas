@@ -273,3 +273,54 @@ FlutterFlow sejam identificadas e eliminadas.
 Produto
 ├── preço_venda
 └── comissao_padrao_percentual
+## Plano de Higienização das Collections Existentes
+
+O inventário abaixo registra a situação das collections existentes no Firestore
+antes da implementação do novo modelo.
+
+A sequência apresentada corresponde à ordem das collections exibidas no
+FlutterFlow, permitindo que o quadro seja utilizado como checklist durante
+a higienização.
+
+> **Importante:** a classificação `LEGADO` não autoriza a exclusão imediata.
+> Antes da remoção devem ser identificadas e eliminadas todas as dependências
+> existentes em páginas, componentes, queries, actions e demais recursos do
+> FlutterFlow.
+
+| # | Collection / Subcollection | Classificação | Destino |
+|---:|---|---|---|
+| 1 | `users` | MANTER | Sem ajuste imediato |
+| 2 | `barbearias` | LEGADO | Substituída por `estabelecimentos` |
+| 3 | `role` | LEGADO | MVP utiliza `users.role` |
+| 4 | `servicos` | AJUSTAR | Novo vínculo com `estabelecimentos`, comissão padrão e auditoria |
+| 5 | `profissional` | LEGADO | Substituir por `colaboradores` |
+| 5.1 | ↳ `horarios_disponiveis` | LEGADO | Substituir por `disponibilidade_colaborador` |
+| 6 | `agendamentos` | REMODELAR | Adequar ao novo fluxo de agenda/atendimento |
+| 7 | `planos_assinatura` | REMODELAR | Plano MotionLab; retirar vínculo com `barbearias` e `limite_cortes_mes` |
+| 8 | `assinaturas_clientes` | REMODELAR | Assinatura vinculada à Rede; retirar conceitos específicos de corte |
+| 9 | `produtos_estoque` | REMODELAR | Separar cadastro do produto, movimentação e posição de estoque |
+| 10 | `movimentacao_estoque` | AJUSTAR | Adequar vínculos, evento temporal e auditoria |
+| 11 | `config_comissoes` | LEGADO | Substituída pelas novas regras de comissão |
+| 12 | `fluxo_caixa` | REMODELAR | Adequar a Baixa Operacional → Liquidação → Crédito |
+| 13 | `convite` | REMODELAR | Manter conceito; novos vínculos, expiração e auditoria |
+| 14 | `redes_franquias` | AJUSTAR | Revisar `dono_id`, `rede_id`, `plano_saas` e `gateway_subscription_id` |
+| 15 | `estabelecimento_id` | LEGADO | Substituída por `estabelecimentos` |
+| 15.1 | ↳ `telefone` | LEGADO | Substituir por `List<TelefoneStruct>` |
+| 15.2 | ↳ `logradouro` | LEGADO | Substituir por `EnderecoStruct` |
+| 15.3 | ↳ `identidade_visual` | LEGADO | Substituir por `IdentidadeVisualStruct` |
+| 16 | `prestadores` | LEGADO | Substituir por `colaboradores` |
+| 17 | `itens_servicos` | LEGADO | Sobreposição com `servicos`; substituir |
+| 18 | `reservas_atendimentos` | LEGADO | Substituir pelo novo modelo de agendamento/atendimento |
+| 19 | `estabelecimento` | LEGADO | Versão intermediária/duplicada |
+| 20 | `estabelecimentos` | AJUSTAR | Collection oficial de Matriz/Filial; incorporar telefone, endereço e identidade visual como objetos |
+
+### Critério para remoção de collections legadas
+
+Uma collection classificada como `LEGADO` somente poderá ser removida após:
+
+1. identificação das dependências existentes no FlutterFlow;
+2. substituição das referências pelo novo modelo;
+3. validação das queries e actions afetadas;
+4. teste do fluxo funcional correspondente;
+5. confirmação de que nenhum dado necessário precisa ser migrado;
+6. somente então, exclusão da estrutura legada.

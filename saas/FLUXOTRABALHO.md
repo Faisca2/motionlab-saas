@@ -1,3 +1,413 @@
+## 17/09/2026 — Inventário e higienização do modelo Firestore
+
+### Objetivo da sessão
+
+A sessão de hoje foi dedicada à continuidade da arquitetura de dados do
+MotionLab, com foco no inventário das collections existentes no Firestore.
+
+A decisão foi não criar ou excluir estruturas imediatamente.
+
+Primeiro será concluído o entendimento do modelo atual, classificando cada
+collection como:
+
+- MANTER
+- AJUSTAR
+- REMODELAR
+- LEGADO
+
+Uma collection classificada como LEGADO não será apagada imediatamente.
+Antes da exclusão deverão ser verificadas todas as dependências existentes
+no FlutterFlow, incluindo páginas, componentes, queries e actions.
+
+---
+
+### Princípio adotado para a higienização
+
+Foi estabelecida a seguinte sequência:
+
+1. identificar a estrutura atual;
+2. entender sua finalidade;
+3. classificar a collection;
+4. identificar sua substituição, quando necessária;
+5. verificar dependências no FlutterFlow;
+6. migrar ou substituir as referências;
+7. testar os fluxos afetados;
+8. somente depois excluir estruturas legadas.
+
+A intenção é evitar que uma limpeza do banco quebre funcionalidades já
+implementadas.
+
+---
+
+### Resultado do inventário
+
+Foi concluída a análise de todas as collections visíveis atualmente no
+FlutterFlow.
+
+#### MANTER
+
+`users`
+
+A collection continua sendo utilizada para autenticação e acesso ao sistema.
+
+Foi mantida a separação conceitual entre usuário e colaborador:
+
+    COLABORADOR
+        └── user_ref → users (opcional)
+
+Nem todo colaborador precisa possuir acesso ao sistema.
+
+---
+
+#### MANTER COM AJUSTES / REMODELAR
+
+`servicos`
+
+Será mantida como catálogo oficial de serviços.
+
+Deverá futuramente substituir o vínculo antigo com `barbearias` pelo novo
+modelo baseado em `estabelecimentos`, além de receber os conceitos de
+comissão padrão e auditoria.
+
+---
+
+`agendamentos`
+
+O conceito permanece, mas a estrutura deverá ser remodelada.
+
+Foi reforçada a separação entre:
+
+    Agendamento
+        ↓
+    Atendimento / execução
+        ↓
+    Baixa operacional
+        ↓
+    Liquidação
+        ↓
+    Crédito
+
+O agendamento não representa automaticamente receita realizada ou pagamento.
+
+---
+
+`planos_assinatura`
+
+O conceito permanece, porém o plano é um produto SaaS do MotionLab e não
+deve pertencer a uma barbearia.
+
+O campo específico `limite_cortes_mes` também não é adequado ao modelo
+multi-nicho.
+
+---
+
+`assinaturas_clientes`
+
+O conceito permanece, mas foi definida uma decisão estrutural importante:
+
+    A assinatura SaaS pertence à REDE.
+
+Não pertence à Matriz e não pertence ao usuário.
+
+O usuário poderá aparecer como ator/auditoria, mas não como proprietário
+estrutural da assinatura.
+
+---
+
+`produtos_estoque`
+
+O conceito permanece, mas deverá ser remodelado para separar melhor:
+
+    Produto
+    Movimentação de estoque
+    Posição/saldo de estoque
+
+Mantém-se a distinção já discutida entre produtos de REVENDA e de
+CONSUMO_OPERACIONAL.
+
+---
+
+`movimentacao_estoque`
+
+O conceito permanece.
+
+Deverá ser atualizado para utilizar as novas referências e preservar
+corretamente o momento do fato gerador, além dos dados de auditoria.
+
+---
+
+`fluxo_caixa`
+
+O conceito financeiro permanece, mas será remodelado.
+
+Foi mantida a decisão de que fluxo financeiro não deve ser utilizado como
+fonte de verdade de toda receita operacional.
+
+Devem existir momentos distintos:
+
+    Baixa operacional
+    Liquidação
+    Crédito
+
+Exemplo:
+
+    Serviço realizado: R$ 100,00
+    Cliente paga no cartão
+    Crédito posterior: R$ 97,50
+    Taxa financeira: R$ 2,50
+
+Cada evento possui significado e momento próprios.
+
+---
+
+`convite`
+
+O conceito permanece.
+
+A estrutura deverá abandonar o vínculo antigo com `barbearias` e,
+futuramente, contemplar adequadamente Rede/Estabelecimento, papel concedido,
+expiração e auditoria.
+
+---
+
+`redes_franquias`
+
+Foi confirmada como a entidade que representa o cliente SaaS/rede.
+
+A estrutura atual será mantida, mas alguns campos precisarão ser avaliados:
+
+    dono_id
+    rede_id
+    plano_saas
+    gateway_subscription_id
+
+Principalmente porque plano e assinatura passarão a possuir estruturas
+próprias, evitando duplicidade de fontes de verdade.
+
+---
+
+`estabelecimentos`
+
+Foi confirmada como a collection oficial para unidades do negócio.
+
+A estrutura atual:
+
+    Rede
+      ↓
+    Matriz
+      ↓
+    Filiais
+
+continua válida.
+
+Foi mantido o modelo:
+
+    rede_ref
+    matriz_ref
+    tipo = MATRIZ | FILIAL
+
+Telefone, endereço e identidade visual deverão futuramente deixar de ser
+Document References separados e passar a ser objetos incorporados ao
+estabelecimento.
+
+Estrutura conceitual:
+
+    estabelecimentos
+        ├── endereco             EnderecoStruct
+        ├── telefones            List<TelefoneStruct>
+        └── identidade_visual    IdentidadeVisualStruct
+
+A utilização de objetos embutidos foi escolhida por serem dados pequenos,
+limitados e normalmente lidos junto com o estabelecimento, reduzindo
+consultas desnecessárias ao Firestore.
+
+---
+
+### Estruturas classificadas como LEGADO
+
+Foram identificadas como candidatas à futura exclusão:
+
+    barbearias
+    role
+    profissional
+      └── horarios_disponiveis
+    config_comissoes
+    estabelecimento_id
+      ├── telefone
+      ├── logradouro
+      └── identidade_visual
+    prestadores
+    itens_servicos
+    reservas_atendimentos
+    estabelecimento
+
+Essas estruturas representam diferentes gerações da evolução do modelo do
+MotionLab.
+
+Foi possível observar claramente a evolução:
+
+    barbearias
+        ↓
+    estabelecimento_id
+        ↓
+    estabelecimento
+        ↓
+    estabelecimentos
+
+A existência dessas versões não será tratada simplesmente apagando as
+collections. Primeiro serão eliminadas suas dependências.
+
+---
+
+### Profissionais e colaboradores
+
+As collections antigas `profissional` e `prestadores` serão substituídas
+conceitualmente por:
+
+    colaboradores
+
+O nome é mais adequado ao caráter multi-nicho do MotionLab.
+
+Também permanece a decisão de que um colaborador pode existir sem possuir
+usuário no sistema.
+
+---
+
+### Disponibilidade
+
+A subcollection antiga:
+
+    profissional/horarios_disponiveis
+
+armazenava horários individuais utilizando data, hora e status.
+
+Esse modelo foi classificado como legado.
+
+O novo conceito será baseado em disponibilidade recorrente:
+
+    disponibilidade_colaborador
+
+Exemplo:
+
+    Segunda-feira
+      08:00 → 12:00
+      14:00 → 18:00
+
+Horários livres não serão persistidos individualmente.
+
+O horário livre será calculado considerando:
+
+    disponibilidade
+      - eventos da força de trabalho
+      - agendamentos
+      - duração do serviço
+      = horários possíveis
+
+---
+
+### Telefone, endereço e identidade visual
+
+A análise das subcollections antigas mostrou que essas informações não
+necessitam de collections independentes.
+
+Telefone evoluirá para uma lista de objetos:
+
+    telefones: List<TelefoneStruct>
+
+permitindo, por exemplo:
+
+    FIXO
+    WHATSAPP
+    COMERCIAL
+
+com indicação de telefone principal.
+
+Endereço será um `EnderecoStruct`.
+
+Identidade visual será um `IdentidadeVisualStruct`.
+
+Essa decisão reduz leituras e mantém junto ao estabelecimento dados que
+possuem o mesmo ciclo de vida.
+
+---
+
+### Comissão
+
+`config_comissoes` foi classificada como legado.
+
+O novo modelo mantém:
+
+    Serviço
+        └── comissão padrão
+
+    Produto
+        └── comissão padrão
+
+Para serviços poderá existir uma exceção específica:
+
+    colaborador_servico_config
+
+A configuração do colaborador não substitui a comissão padrão; representa
+um ajuste percentual sobre ela.
+
+A política que relaciona produtividade, duração do serviço ou comissão é
+responsabilidade da gestão do estabelecimento.
+
+O MotionLab apenas executará a configuração definida pelo gestor.
+
+---
+
+### Ordem operacional do checklist
+
+Foi decidido que o quadro de higienização no `modelo-de-dados.md` seguirá
+exatamente a mesma sequência visual das collections apresentada pelo
+FlutterFlow.
+
+Motivo:
+
+A ordem técnica das collections é indiferente para análise automatizada,
+mas para a execução humana seguir a mesma sequência da interface reduz
+procura, esforço mental e possibilidade de erro.
+
+Assim, a ordem apresentada no FlutterFlow passa a ser também a ordem do
+checklist de higienização.
+
+---
+
+### Documentação
+
+O quadro completo de classificação das collections foi preparado para ser
+incluído em:
+
+    saas/docs/5. architecture/modelo-de-dados.md
+
+O quadro passa a funcionar também como checklist da migração/higienização.
+
+Regra registrada:
+
+> LEGADO não significa DELETE.
+> Primeiro identificamos dependências no FlutterFlow, migramos ou
+> substituímos, testamos e somente então excluímos.
+
+---
+
+### Situação ao encerrar a sessão
+
+O inventário das collections visíveis está concluído.
+
+Nenhuma collection foi excluída durante esta etapa.
+
+Nenhuma alteração física do modelo Firestore foi realizada como consequência
+do inventário.
+
+A próxima etapa será iniciar a higienização seguindo a mesma ordem visual
+das collections no FlutterFlow, verificando dependências antes de qualquer
+alteração ou exclusão.
+
+---
+
+## 16/09/2026 — Inventário e higienização do modelo Firestore
+
 | Collection atual        | Situação que definimos                                                                                     |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
 | `redes_franquias`       | **Manter** — arquitetura atual                                                                             |
