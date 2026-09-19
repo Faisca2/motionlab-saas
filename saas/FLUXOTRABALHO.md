@@ -1,4 +1,29 @@
 ## 19/09/2026 — Higienização do modelo de dados Firestore
+Sim. E isso esclarece a arquitetura.
+
+Uma **venda avulsa de produto** não precisa nascer de um `agendamento`. Ela pode nascer de uma operação própria de venda, acessada por uma página de vendas ou por uma modal na `homePageAtendimento`.
+
+O fluxo conceitual seria:
+
+```text
+VENDA
+ ├─ itens vendidos
+ ├─ produtos
+ ├─ quantidades
+ ├─ valores praticados
+ ├─ colaborador (quando aplicável)
+ └─ pagamento
+       ↓
+ movimentacao_estoque
+       +
+ fluxo_caixa
+```
+
+Isso significa que **não devemos tentar fazer `fluxo_caixa.agendamento_ref` atender também venda de produto**. O correto será existir um fato gerador próprio para venda, provavelmente uma collection `vendas`, e futuramente o `fluxo_caixa` poderá ter tanto `agendamento_ref` quanto `venda_ref`, opcionais conforme a origem.
+
+E a página/modal é apenas a **interface que gera esse fato**; não muda o modelo.
+
+Por enquanto, eu manteria `agendamento_ref` exatamente como está e **não criaria `vendas` agora**, para não desviarmos da higiene do `fluxo_caixa`. Seguimos para o próximo campo.
 
 Continuidade da revisão das collections do MotionLab após o inventário do modelo legado.
 
