@@ -1,3 +1,107 @@
+## 18/09/2026 — Higienização e evolução do modelo de dados
+
+Demos continuidade ao inventário e à higienização das collections do Firestore, preservando as estruturas antigas enquanto criamos e adaptamos o novo modelo.
+
+### Estruturas principais
+
+- `redes_franquias`
+  - incluído `dono_ref` → `users`;
+  - incluídos campos de auditoria:
+    - `atualizado_em`
+    - `criado_por_ref`
+    - `atualizado_por_ref`.
+
+- `estabelecimentos`
+  - mantida como collection oficial para MATRIZ/FILIAL;
+  - incluídos campos de auditoria;
+  - iniciada substituição das antigas referências de telefone, endereço e identidade visual por estruturas incorporadas ao estabelecimento;
+  - criado `telefones` como `List<TelefoneStruct>`;
+  - criado `endereco_dados` como `EnderecoStruct`;
+  - criado `identidade_visual_dados` como `IdentidadeVisualStruct`.
+  - Os campos antigos permanecem temporariamente até verificarmos todas as dependências.
+
+- `users`
+  - estrutura atual preservada;
+  - incluídos campos de auditoria:
+    - `atualizado_em`
+    - `criado_por_ref`
+    - `atualizado_por_ref`.
+
+### Nova collection `colaboradores`
+
+Criada para substituir conceitualmente as antigas estruturas `profissional` e `prestadores`.
+
+Campos definidos:
+
+- `estabelecimento_ref` → `estabelecimentos`
+- `user_ref` → `users` (opcional)
+- `nome`
+- `ativo`
+- `servicos_ref` → List<Document Reference → servicos>
+- `criado_em`
+- `atualizado_em`
+- `criado_por_ref`
+- `atualizado_por_ref`
+
+Decisão importante: **colaborador não é obrigatoriamente um usuário do sistema**. O vínculo com `users` existe apenas quando o colaborador possuir acesso ao MotionLab.
+
+### Nova collection `clientes`
+
+Criada para separar o cliente operacional do usuário autenticado.
+
+Campos definidos:
+
+- `user_ref` → `users` (opcional)
+- `nome`
+- `telefone`
+- `email`
+- `ativo`
+- `rede_ref` → `redes_franquias`
+- `criado_em`
+- `atualizado_em`
+- `criado_por_ref`
+- `atualizado_por_ref`
+
+Decisão arquitetural: o cliente pertence à **Rede**, permitindo que seu cadastro seja compartilhado entre Matriz e Filiais sem duplicação. Assim como colaborador, cliente não precisa possuir conta de usuário.
+
+### `agendamentos`
+
+Iniciada a migração da estrutura antiga para o novo modelo.
+
+Foram acrescentados:
+
+- `estabelecimento_ref` → `estabelecimentos`
+- `colaborador_ref` → `colaboradores`
+- `cliente_ref` → `clientes`
+- `servicos_ref` → List<Document Reference → servicos>
+- campos de auditoria:
+  - `criado_em`
+  - `atualizado_em`
+  - `criado_por_ref`
+  - `atualizado_por_ref`
+
+Os campos legados ainda permanecem temporariamente:
+
+- `barbearia_id`
+- `usuario_id`
+- `profissional_id`
+- `servico_id`
+- `tipo_pagamento`
+
+Nenhum deles será removido antes de verificarmos suas dependências nas páginas, queries e actions do FlutterFlow.
+
+### Princípio mantido durante a higienização
+
+Não apagar estruturas antigas apenas porque existe um novo modelo.
+
+Fluxo adotado:
+
+**criar/adaptar estrutura nova → verificar dependências → migrar utilização → testar → somente então remover o legado.**
+
+### Ponto de retomada
+
+Na próxima sessão, continuar pela collection `agendamentos`, começando pela verificação das dependências de `barbearia_id` antes de qualquer exclusão.
+
 ## 17/09/2026 — Inventário e higienização do modelo Firestore
 
 ### Objetivo da sessão
