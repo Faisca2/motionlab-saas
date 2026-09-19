@@ -1,3 +1,347 @@
+## 19/09/2026 — Higienização do modelo de dados Firestore
+
+Continuidade da revisão das collections do MotionLab após o inventário do modelo legado.
+
+A estratégia adotada foi não simplesmente excluir estruturas antigas. Para cada collection/campo, verificamos primeiro as ocorrências no FlutterFlow usando a busca global, evitando quebrar páginas, componentes, queries ou actions existentes.
+
+### planos_assinatura
+
+A collection foi mantida como catálogo dos planos SaaS.
+
+Foram consolidados campos de auditoria e identificado que campos específicos do antigo modelo de barbearia, como `limite_cortes_mes`, não fazem sentido para o SaaS multi-nicho.
+
+### convite
+
+A collection foi remodelada para o novo modelo:
+
+- `codigo`
+- `role`
+- `usado`
+- `criado_em`
+- `rede_ref`
+- `estabelecimento_ref`
+- `expira_em`
+- `usado_por_ref`
+- `usado_em`
+- `criado_por_ref`
+
+O antigo `created_time` foi substituído pelo padrão `criado_em`.
+
+### redes_franquias
+
+A collection foi higienizada.
+
+O antigo `dono_id` String foi substituído por:
+
+`dono_ref → Document Reference (users)`
+
+Antes da remoção foi identificada e corrigida a utilização existente no fluxo `criarMatrizModal`.
+
+Também foram retirados campos redundantes ou que pertencem a outros domínios:
+
+- `plano_saas`
+- `gateway_subscription_id`
+- `rede_id`
+
+O plano e a assinatura deixam de ser duplicados dentro da Rede e passam a pertencer ao domínio de assinatura SaaS.
+
+A estrutura resultante mantém os dados da Rede e o padrão de auditoria.
+
+### estabelecimentos
+
+Foi mantida como collection oficial das unidades (MATRIZ/FILIAL).
+
+Foram introduzidas estruturas embutidas para evitar collections auxiliares e leituras desnecessárias:
+
+- `telefones` → List<TelefoneStruct>
+- `endereco_dados` → EnderecoStruct
+- `identidade_visual_dados` → IdentidadeVisualStruct
+
+As antigas referências `telefone`, `endereco` e `identidade_visual` foram verificadas na busca global antes da retirada.
+
+Também foram acrescentados os campos do padrão de auditoria.
+
+### servicos
+
+A collection foi consolidada como catálogo oficial de serviços.
+
+Estrutura atual contempla:
+
+- estabelecimento
+- nome
+- preço
+- duração
+- ativo
+- comissão padrão percentual
+- auditoria
+
+A duração continua sendo utilizada por telas existentes, portanto sua compatibilidade foi preservada.
+
+### agendamentos
+
+A antiga estrutura foi remodelada para o modelo atual.
+
+Passou a utilizar:
+
+- `estabelecimento_ref`
+- `servicos_ref` como lista
+- `colaborador_ref`
+- `cliente_ref`
+- `data_hora`
+- `status`
+- auditoria
+
+A busca mostrou que o campo `status` da collection ainda não possui dependência direta em lógica existente.
+
+### assinatura SaaS
+
+A antiga `assinaturas_clientes` foi revisada e não possuía utilização no FlutterFlow.
+
+Foi criada/consolidada a collection `assinaturas_saas`, deixando explícito que a assinatura pertence à Rede SaaS e não a um usuário ou estabelecimento individual.
+
+Estrutura:
+
+- `plano_id`
+- `status`
+- `proximo_vencimento`
+- `rede_ref`
+- `gateway_subscription_id`
+- `inicio_em`
+- auditoria
+
+### produtos
+
+A antiga collection `produtos_estoque`, sem utilizações existentes no FlutterFlow, foi renomeada para:
+
+`produtos`
+
+A mudança deixa clara a separação entre cadastro do produto e movimentação de estoque.
+
+A collection mantém informações como:
+
+- nome
+- código de barras
+- tipo
+- preço de custo
+- preço de venda
+- quantidade atual
+- quantidade mínima
+- estabelecimento
+- comissão padrão
+- ativo
+- auditoria
+
+### movimentacao_estoque
+
+Foi ajustada para referenciar a nova collection `produtos`.
+
+Alterações:
+
+`produto_id` → `produto_ref`
+
+`produto_ref → Document Reference (produtos)`
+
+`data_hora` → `movimentado_em`
+
+Foi reforçada a distinção entre:
+
+- `movimentado_em` = momento do fato de estoque
+- `criado_em` = momento em que o registro foi criado no sistema
+
+Também foram adicionados:
+
+- `atualizado_em`
+- `atualizado_por_ref`
+
+O campo `tipo_movimento` foi pesquisado globalmente e não possui utilizações atuais.
+
+Foi definido conceitualmente seu domínio inicial:
+
+- `ENTRADA_COMPRA`
+- `SAIDA_VENDA`
+- `SAIDA_CONSUMO`
+- `AJUSTE_ENTRADA`
+- `AJUSTE_SAIDA`
+
+Esses valores continuarão sendo armazenados como String. Não será criada uma collection específica de domínio neste momento, evitando complexidade e leituras desnecessárias.
+
+### Princípio reforçado durante a higienização
+
+Antes de excluir ou alterar qualquer estrutura existente:
+
+1. pesquisar sua utilização no FlutterFlow;
+2. corrigir as dependências encontradas;
+3. pesquisar novamente;
+4. somente então remover ou remodelar.
+
+Isso permitiu transformar gradualmente o modelo legado sem comprometer funcionalidades já construídas.
+
+### Ponto de parada
+
+A `movimentacao_estoque` ficou higienizada.
+
+Próxima análise após o almoço: `fluxo_caixa`, considerando a separação já definida entre fato operacional, liquidação do cliente e crédito efetivamente disponibilizado ao estabelecimento.
+## 19/09/2026 — Higienização e evolução do modelo de dados
+
+Perfeito. Agora o `fluxo_caixa` ficou sem os três IDs String redundantes:
+
+`estabelecimento_id` ❌ → `estabelecimento_ref` ✅
+`rede_id` ❌ → `rede_ref` ✅
+`agendamento_id` ❌ → `agendamento_ref` ✅
+
+Agora vem um caso mais interessante para arquitetura: **`prestador_id`**.
+
+Eu não removeria automaticamente. No modelo atual, o equivalente seria `colaborador_ref`, mas primeiro precisamos responder: **o `fluxo_caixa` precisa saber qual colaborador originou aquela movimentação?**
+
+Minha leitura é que **sim, pode ser necessário**, principalmente para comissão, extrato do colaborador e rastreabilidade da receita. Porém, como já definimos que `fluxo_caixa` representa o evento financeiro e não o atendimento em si, precisamos evitar duplicar informação sem necessidade.
+
+Vamos analisar esse ponto antes de criar `colaborador_ref`.
+
+
+Blz precisamos higienizar as paginas, mas vamos finalizar as collections para depoi começarmos as paginas.
+
+Concordo. **Não vamos abrir a frente de páginas agora.** A busca já nos mostrou que existe uma higienização de páginas a fazer depois, mas deixamos isso estacionado.
+
+Vamos concluir **100% das collections primeiro**.
+
+Até aqui já eliminamos vários legados: `barbearias`, `prestadores`, `reservas_atendimentos`, `profissional`, `itens_servicos`, `config_comissoes` e `role`.
+
+**Próximo passo único:** volte à área de **Firestore Collections** e me envie um print da **lista atual completa das collections**.
+
+Com essa lista atualizada, vamos percorrer somente o que restou e fechar a higienização do banco antes de tocar nas páginas.
+
+
+Vamos fechar essa decisão antes de alterar o schema.
+
+Eu manteria a relação com o colaborador no `fluxo_caixa`, mas **não como `prestador_id` String**. Criaria:
+
+`colaborador_ref` → **Doc Reference (`colaboradores`)**
+
+Motivo: embora o atendimento seja a fonte do fato operacional, uma movimentação financeira pode precisar ser consultada diretamente por colaborador — por exemplo, extrato, comissão e rastreabilidade. Guardar a referência evita ter que navegar `fluxo_caixa → agendamento → colaborador` toda vez.
+
+Isso é uma **desnormalização intencional para leitura**, não uma segunda fonte de verdade: quem determina o colaborador é o atendimento/agendamento que originou a movimentação.
+
+**Próximo passo:** crie apenas `colaborador_ref` como `Doc Reference → colaboradores`. Depois removemos `prestador_id`.
+
+
+
+
+Concordo. E aqui vale separar duas coisas: **planejamento da agenda** e **medição do trabalho realizado**.
+
+No agendamento, registrar início e fim de **cada serviço** realmente começa a burocratizar. Para montar a agenda, já temos informação suficiente: `data_hora` + os `servicos_ref`; cada serviço possui sua duração padrão e, quando houver exceção do colaborador, teremos o `ajuste_tempo_percentual`. Assim conseguimos calcular o tempo reservado.
+
+Por exemplo:
+
+```text
+Agendamento: 09:00
+
+Corte
+  duração padrão: 30 min
+  ajuste João: +20%
+  duração prevista: 36 min
+
+Barba
+  duração padrão: 20 min
+  ajuste João: 0%
+  duração prevista: 20 min
+
+Tempo previsto do agendamento = 56 min
+Fim previsto = 09:56
+```
+
+Já para conhecer o **perfil real do colaborador**, você tocou num ponto importante. Não precisamos obrigar alguém a registrar início/fim de cada serviço. Podemos medir no nível do **atendimento**:
+
+```text
+agendamento
+   ↓
+atendimento
+   inicio_real
+   fim_real
+```
+
+Então conseguimos comparar:
+
+```text
+tempo previsto do conjunto de serviços: 56 min
+tempo real do atendimento:             51 min
+```
+
+Ao longo do tempo isso permite descobrir que determinado colaborador costuma levar, por exemplo, 10% menos tempo naquele **conjunto/volume de atendimentos**, sem exigir quatro ou cinco marcações durante um único atendimento.
+
+E existe outra vantagem: **não misturamos previsão com fato**. `agendamentos` guarda o que estava planejado; o futuro atendimento guarda o que realmente aconteceu.
+
+Eu manteria `agendamentos` exatamente como está agora. Quando chegarmos à modelagem da baixa/atendimento, tratamos `inicio_real` e `fim_real`. Isso preserva informação útil para análise de produtividade sem transformar a operação do salão em preenchimento de formulário.
+
+
+Perfeito. Agora `agendamentos` ficou coerente com o modelo novo. ✅
+
+Pelo print, temos:
+
+```text
+agendamentos
+├── data_hora             DateTime
+├── status                String
+├── estabelecimento_ref   → estabelecimentos
+├── servicos_ref          List → servicos
+├── colaborador_ref       → colaboradores
+├── cliente_ref           → clientes
+├── criado_em             DateTime
+├── atualizado_em         DateTime
+├── criado_por_ref        → users
+└── atualizado_por_ref    → users
+```
+
+Os cinco campos legados foram eliminados: `barbearia_id`, `usuario_id`, `profissional_id`, `servico_id` e `tipo_pagamento`.
+
+Há uma questão que **não precisamos resolver agora**: futuramente podemos avaliar se `data_hora` será suficiente ou se precisaremos representar início/fim ou calcular o término pela duração dos serviços. Não vou acrescentar isso durante a higienização.
+
+**`agendamentos` está fechado por enquanto.**
+
+Próximo passo: vamos para **`servicos`**, porque ela já é nossa collection oficial, mas ainda possui o vínculo legado com `barbearias`. Abra o schema de `servicos` e me mande o print atual.
+
+Perfeito. Agora `agendamentos` já ficou livre de quatro vínculos legados:
+
+`barbearia_id`, `usuario_id`, `profissional_id` e `servico_id` foram removidos com dependências verificadas antes. ✅
+
+O próximo é **`tipo_pagamento`**, mas aqui não vamos simplesmente procurar e apagar. Pelo modelo que definimos, **agendamento é reserva operacional; pagamento pertence ao fluxo financeiro/liquidação**. Inclusive o cliente pode pagar posteriormente ou existir pagamento dividido.
+
+### Próximo passo
+
+Antes de decidir sobre o campo, pesquise globalmente:
+
+```text
+tipo_pagamento
+```
+
+Vamos primeiro verificar se ele é usado em algum lugar. Depois decidimos **se sai de `agendamentos` e para qual estrutura financeira essa informação deverá migrar**.
+
+
+Exatamente — **conceitualmente são o domínio de `tipo_movimento`**, mas eu **não criaria uma collection/tabela de domínio agora**.
+
+No Firestore, `tipo_movimento` continua sendo `String`, e cada documento grava um dos valores permitidos, por exemplo:
+
+```text
+tipo_movimento = "ENTRADA_COMPRA"
+```
+
+O domínio que estamos definindo é:
+
+```text
+ENTRADA_COMPRA
+SAIDA_VENDA
+SAIDA_CONSUMO
+AJUSTE_ENTRADA
+AJUSTE_SAIDA
+```
+
+Ou seja, é equivalente ao que no banco relacional chamaríamos de **domínio controlado do campo**, só que não precisamos fazer uma collection `tipos_movimento_estoque` e gastar uma leitura para descobrir o significado.
+
+Mais adiante, se houver necessidade de o cliente **configurar seus próprios tipos**, aí faria sentido uma collection. Para esses tipos estruturais do MotionLab, eu manteria como valores controlados pela aplicação.
+
+Portanto, **não precisa criar nada no Firestore agora**. Apenas documentamos esse domínio no `modelo-de-dados.md` quando fecharmos esta etapa.
+
+
+
 ## 18/09/2026 — Higienização e evolução do modelo de dados
 
 Demos continuidade ao inventário e à higienização das collections do Firestore, preservando as estruturas antigas enquanto criamos e adaptamos o novo modelo.
