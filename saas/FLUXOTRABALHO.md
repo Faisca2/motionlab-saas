@@ -1,4 +1,1299 @@
+## 20/09/2026 — Modelagem do Atendimento como Fato Operacional e sua relação com o Fluxo de Caixa
+
+### Contexto
+
+A revisão da collection `fluxo_caixa` mostrou que não bastava registrar entradas e saídas financeiras.
+
+Era necessário identificar corretamente o fato que originou cada movimentação, permitindo:
+
+- auditoria;
+- conciliação;
+- rastreabilidade;
+- reconstrução histórica;
+- redução de investigação manual;
+- prevenção de dupla contabilização.
+
+A discussão levou à criação e modelagem da collection `atendimentos`.
+
+---
+
+## 1. Separação entre Agendamento e Atendimento
+
+Durante a análise foi estabelecida a seguinte distinção:
+
+> **Paulo:** "Realizar é prestar o serviço ou vender o produto, agendar é organizar a prestação do serviço."
+
+Com isso:
+
+```text
+AGENDAMENTO
+→ organiza previamente a prestação do serviço.
+
+ATENDIMENTO
+→ registra aquilo que efetivamente aconteceu.
+
+Claro. ☕ Vou deixar o trecho pronto para você copiar no `FLUXOTRABALHO.md`, preservando desta vez **suas observações que provocaram as decisões**.
+
+````markdown
+## Modelagem do Atendimento como Fato Operacional e sua relação com o Fluxo de Caixa
+
+### Contexto
+
+A revisão da collection `fluxo_caixa` mostrou que não bastava registrar entradas e saídas financeiras.
+
+Era necessário identificar corretamente o fato que originou cada movimentação, permitindo:
+
+- auditoria;
+- conciliação;
+- rastreabilidade;
+- reconstrução histórica;
+- redução de investigação manual;
+- prevenção de dupla contabilização.
+
+A discussão levou à criação e modelagem da collection `atendimentos`.
+
+---
+
+## 1. Separação entre Agendamento e Atendimento
+
+Durante a análise foi estabelecida a seguinte distinção:
+
+> **Paulo:** "Realizar é prestar o serviço ou vender o produto, agendar é organizar a prestação do serviço."
+
+Com isso:
+
+```text
+AGENDAMENTO
+→ organiza previamente a prestação do serviço.
+
+ATENDIMENTO
+→ registra aquilo que efetivamente aconteceu.
+````
+
+Um agendamento pode ser cancelado, resultar em não comparecimento ou nunca gerar receita.
+
+Portanto, o agendamento não representa o fato operacional realizado.
+
+### Refinamento
+
+Foi posteriormente estabelecido:
+
+> **Paulo:** "Atendimento é tanto para serviço como para produto."
+
+Assim, Atendimento passou a representar a operação realizada com o cliente, podendo conter:
+
+* somente serviços;
+* somente produtos;
+* serviços e produtos simultaneamente.
+
+Uma venda avulsa de produto também pode constituir um Atendimento, mesmo sem existir agendamento anterior.
+
+### Decisão
+
+```text
+Agendamento
+     ↓ opcional
+Atendimento
+     ├── Serviços
+     └── Produtos
+          ↓
+      Fluxo de Caixa
+```
+
+O **Atendimento é o fato operacional**.
+
+O `fluxo_caixa` registra os fatos financeiros decorrentes desse fato operacional.
+
+---
+
+## 2. Criação da collection `atendimentos`
+
+Foi criada:
+
+```text
+atendimentos
+```
+
+Referências iniciais:
+
+```text
+rede_ref              Doc Reference → redes_franquias
+estabelecimento_ref   Doc Reference → estabelecimentos
+cliente_ref           Doc Reference → clientes
+colaborador_ref       Doc Reference → colaboradores
+agendamento_ref       Doc Reference → agendamentos
+```
+
+`agendamento_ref` é opcional, pois um Atendimento pode existir sem agendamento.
+
+`rede_ref` permanece diretamente no documento para identificação explícita do tenant, facilitando consultas, segurança e auditoria.
+
+---
+
+## 3. Atendimento como fotografia histórica
+
+Durante a modelagem dos itens foi observado que simplesmente guardar referências para `servicos` e `produtos` seria insuficiente.
+
+Preços, comissões e outras condições podem mudar depois da realização.
+
+> **Paulo:** "É importante que seja a ocorrência de alteração dos valores; pode ser minutos, hora, meses e para conciliar e auditar é necessário."
+
+Foi então decidido que os itens do Atendimento seriam **snapshots das condições existentes e efetivamente aplicadas no momento do fato**.
+
+### Princípio
+
+> O histórico deve ser autoexplicativo. A consulta à configuração deve explicar a origem de uma regra, não ser necessária para reconstruir o fato ocorrido.
+
+Paulo observou ainda:
+
+> "Quando precisamos recorrer à regra para explicar o porquê, é por demais custos."
+
+A decisão também possui consequência operacional:
+
+* menos consultas;
+* menos reconstrução histórica;
+* menos investigação;
+* menor custo de suporte;
+* maior facilidade de auditoria.
+
+---
+
+## 4. Snapshot de serviços
+
+Foi criado o Data Type:
+
+```text
+ItemServicoAtendimentoStruct
+```
+
+Campos:
+
+```text
+servico_ref                    Doc Reference → servicos
+nome                           String
+preco_tabela                   Double
+preco_aplicado                 Double
+duracao_prevista               Integer
+comissao_padrao_percentual     Double
+comissao_aplicada_percentual   Double
+desconto_valor                 Double
+```
+
+O `servico_ref` identifica o cadastro de origem.
+
+Os demais campos preservam a fotografia das condições relevantes daquele serviço no momento do Atendimento.
+
+---
+
+## 5. Snapshot de produtos
+
+Foi criado:
+
+```text
+ItemProdutoAtendimentoStruct
+```
+
+Campos:
+
+```text
+produto_ref                    Doc Reference → produtos
+nome                           String
+codigo_barras                  String
+tipo                           String
+preco_tabela                   Double
+preco_aplicado                 Double
+quantidade                     Integer
+comissao_padrao_percentual     Double
+comissao_aplicada_percentual   Double
+desconto_valor                 Double
+```
+
+`preco_custo` não foi incluído no snapshot do Atendimento, pois pertence à dimensão de estoque/financeira e não ao fato comercial realizado com o cliente.
+
+---
+
+## 6. Itens dentro do Atendimento
+
+Foram adicionadas a `atendimentos`:
+
+```text
+itens_servico
+List<Data(ItemServicoAtendimentoStruct)>
+
+itens_produto
+List<Data(ItemProdutoAtendimentoStruct)>
+```
+
+Um Atendimento pode, portanto, possuir diversos serviços e diversos produtos.
+
+Durante a modelagem surgiu a analogia de que o Atendimento estava ficando:
+
+> **Paulo:** "Quase uma fita de cupom fiscal."
+
+A analogia foi considerada adequada porque o Atendimento passa a preservar uma fotografia detalhada do fato ocorrido, porém contendo informações adicionais de rastreabilidade, colaborador, cliente, rede, estabelecimento, comissões e referências de origem.
+
+---
+
+## 7. Descontos, abatimentos e totais
+
+Paulo observou:
+
+> "No atendimento deverá registrar um possível abatimento ou desconto."
+
+Foi feita a distinção entre:
+
+* desconto aplicado diretamente a um item;
+* abatimento aplicado globalmente ao Atendimento.
+
+Os descontos individuais ficam registrados nos respectivos snapshots.
+
+Foram adicionados ao Atendimento:
+
+```text
+valor_servicos   Double
+valor_produtos   Double
+desconto_itens   Double
+abatimento       Double
+valor_total      Double
+```
+
+Exemplo:
+
+```text
+Serviços .................. R$ 80,00
+Produtos .................. R$ 40,00
+Descontos nos itens ....... R$  5,00
+Abatimento ................ R$ 10,00
+                           ----------
+Valor total ............... R$105,00
+```
+
+A decisão foi não armazenar somente o resultado final.
+
+O Atendimento deve preservar os componentes necessários para explicar como o valor final foi obtido.
+
+---
+
+## 8. Momento e estado do Atendimento
+
+Foi criado:
+
+```text
+realizado_em   DateTime
+```
+
+`realizado_em` representa quando o fato operacional efetivamente ocorreu.
+
+Também foi criado:
+
+```text
+status   String
+```
+
+Domínio conceitual inicial:
+
+```text
+ABERTO
+EM_ATENDIMENTO
+REALIZADO
+CANCELADO
+```
+
+`realizado_em` somente deverá ser preenchido quando o Atendimento efetivamente atingir o estado `REALIZADO`.
+
+---
+
+## 9. Auditoria
+
+Foram adicionados:
+
+```text
+criado_em             DateTime
+criado_por_ref        Doc Reference → users
+atualizado_em         DateTime
+atualizado_por_ref    Doc Reference → users
+```
+
+Paulo observou:
+
+> "Estes campos de atualizado_em e por não podem ocorrer realizado e cancelado."
+
+Foi então estabelecido que:
+
+```text
+ABERTO
+EM_ATENDIMENTO
+→ estados mutáveis
+
+REALIZADO
+CANCELADO
+→ encerram a edição normal
+```
+
+Um Atendimento realizado representa um fato histórico e não deve ser simplesmente reescrito.
+
+---
+
+## 10. Estorno como novo fato
+
+Na discussão sobre eventuais correções posteriores, Paulo propôs:
+
+> "Simpatizo mais com estorno referendando atendimento com justificativa por colaborador diferente ao atendimento."
+
+A ideia foi aceita conceitualmente.
+
+Um Atendimento `REALIZADO` deverá permanecer preservado.
+
+Uma eventual reversão deverá futuramente ocorrer por meio de um **novo fato de estorno**, referenciando o Atendimento original e registrando:
+
+* justificativa;
+* data;
+* responsável autorizado pelo estorno;
+* referência ao Atendimento original.
+
+O responsável pelo estorno deverá possuir autorização adequada, separando a responsabilidade de quem realizou o Atendimento daquela de quem autorizou sua reversão.
+
+A modelagem do estorno foi deliberadamente deixada para etapa posterior para não desviar o foco atual.
+
+---
+
+## 11. Relação `Atendimento → fluxo_caixa`
+
+Foi criado em `fluxo_caixa`:
+
+```text
+atendimento_ref
+Document Reference → atendimentos
+```
+
+Com isso:
+
+```text
+Atendimento
+     ↓
+Fluxo de Caixa
+```
+
+Vários fatos financeiros podem estar relacionados ao mesmo Atendimento sem representar vários fatos operacionais.
+
+---
+
+## 12. Eliminação de `fluxo_caixa.agendamento_ref`
+
+Após a criação de `atendimento_ref`, foi realizada busca global no FlutterFlow por:
+
+```text
+agendamento_ref
+```
+
+Resultado:
+
+```text
+fluxo_caixa.agendamento_ref   → 0 usos
+atendimentos.agendamento_ref  → 0 usos
+```
+
+Foi mantido:
+
+```text
+atendimentos.agendamento_ref
+```
+
+e removido:
+
+```text
+fluxo_caixa.agendamento_ref
+```
+
+A relação passou a possuir um único caminho:
+
+```text
+agendamentos
+      ↓
+atendimentos.agendamento_ref
+      ↓
+atendimentos
+      ↓
+fluxo_caixa.atendimento_ref
+```
+
+O `atendimentos.agendamento_ref` foi justamente o motivador para eliminar a redundância em `fluxo_caixa`.
+
+Além de simplificar o modelo, isso evita inconsistências nas quais Atendimento e Fluxo de Caixa poderiam apontar para agendamentos diferentes.
+
+---
+
+## 13. Natureza do movimento financeiro
+
+Foi adicionado ao `fluxo_caixa`:
+
+```text
+natureza   String
+```
+
+Inicialmente foram discutidos diversos eventos financeiros, como liquidação, crédito, taxa e estorno.
+
+Durante a análise, Paulo refinou o conceito:
+
+> "Entendo que o fluxo de caixa deve ter apenas liquidação, pagamento e retirada."
+
+Essa observação simplificou o domínio.
+
+O `fluxo_caixa` não deve representar todos os eventos econômicos ou bancários possíveis.
+
+Ele representa a movimentação efetiva relacionada ao caixa operacional.
+
+Domínio conceitual atual:
+
+```text
+LIQUIDACAO
+PAGAMENTO
+RETIRADA
+```
+
+Onde:
+
+```text
+LIQUIDACAO
+→ recebimento/liquidação da obrigação do cliente
+
+PAGAMENTO
+→ pagamento de obrigação ou despesa
+
+RETIRADA
+→ retirada de recursos do caixa
+```
+
+O campo:
+
+```text
+tipo
+```
+
+permanece indicando a direção:
+
+```text
+ENTRADA
+SAIDA
+```
+
+Embora `tipo` possa em muitos casos ser inferido de `natureza`, foi mantido por facilitar consultas e agregações.
+
+---
+
+## 14. Separação entre fato operacional e fato financeiro
+
+A arquitetura resultante até este ponto é:
+
+```text
+AGENDAMENTO
+   │
+   │ organiza
+   ▼
+ATENDIMENTO
+   │
+   │ registra o fato operacional
+   │
+   ├── serviços
+   ├── produtos
+   ├── descontos
+   ├── abatimentos
+   └── valor_total
+   │
+   ▼
+FLUXO_CAIXA
+   │
+   ├── LIQUIDACAO
+   ├── PAGAMENTO
+   └── RETIRADA
+```
+
+### Princípio consolidado
+
+> **O Atendimento registra o que aconteceu economicamente com o cliente. O Fluxo de Caixa registra a movimentação financeira decorrente dos fatos do negócio.**
+
+Essa separação evita que diferentes eventos relacionados ao mesmo fato sejam somados incorretamente como se representassem novas receitas.
+
+Também prepara o MotionLab para futuras necessidades de:
+
+* conciliação financeira;
+* conciliação bancária;
+* integração contábil;
+* auditoria;
+* rastreabilidade;
+* suporte e investigação de divergências.
+
+A futura camada de conciliação poderá tratar eventos específicos de adquirentes, taxas, créditos bancários e integrações contábeis sem transformar `fluxo_caixa` em uma estrutura contábil excessivamente complexa para o MVP.
+
+---
+
+### Ponto de parada
+
+A modelagem encontra-se neste ponto:
+
+* `atendimentos` criado e estruturado;
+* snapshots de serviços e produtos criados;
+* descontos e abatimentos modelados;
+* auditoria definida;
+* Atendimento estabelecido como fato operacional;
+* `fluxo_caixa.atendimento_ref` criado;
+* `fluxo_caixa.agendamento_ref` removido;
+* `fluxo_caixa.natureza` criado;
+* domínio conceitual atual de `natureza`:
+
+  * `LIQUIDACAO`
+  * `PAGAMENTO`
+  * `RETIRADA`
+
+**Próximo ponto:** continuar a revisão de `fluxo_caixa` a partir da definição das regras de `natureza`, `tipo` e seus impactos nas consultas e agregações.
+
+```
+
+Bom café. ☕ Quando voltar, retomamos exatamente de **`LIQUIDACAO | PAGAMENTO | RETIRADA`**, sem abrir a frente de estorno ainda. 
+```
+## Refinamento final do Fluxo de Caixa
+
+Durante a revisão campo a campo da collection `fluxo_caixa`, foram refinadas as responsabilidades de cada atributo e, principalmente, os limites do domínio financeiro.
+
+### Natureza e tipo da movimentação
+
+Foi identificada uma redundância intencional entre `natureza` e `tipo`.
+
+Paulo observou:
+
+> "É uma redundância que se justifica pela semântica."
+
+E acrescentou o cuidado principal:
+
+> "A natureza determina o tipo."
+
+Ficou estabelecida a seguinte regra:
+
+```text
+LIQUIDACAO → ENTRADA
+PAGAMENTO  → SAIDA
+
+Vamos. Eu acrescentaria **logo após o trecho que já fizemos sobre `fluxo_caixa`**, sem reescrever o conteúdo anterior. Este bloco registra justamente as decisões que surgiram depois do café:
+
+````markdown
+## Refinamento final do Fluxo de Caixa
+
+Durante a revisão campo a campo da collection `fluxo_caixa`, foram refinadas as responsabilidades de cada atributo e, principalmente, os limites do domínio financeiro.
+
+### Natureza e tipo da movimentação
+
+Foi identificada uma redundância intencional entre `natureza` e `tipo`.
+
+Paulo observou:
+
+> "É uma redundância que se justifica pela semântica."
+
+E acrescentou o cuidado principal:
+
+> "A natureza determina o tipo."
+
+Ficou estabelecida a seguinte regra:
+
+```text
+LIQUIDACAO → ENTRADA
+PAGAMENTO  → SAIDA
+````
+
+A relação possui apenas um sentido:
+
+```text
+natureza → determina → tipo
+```
+
+O `tipo` não determina a `natureza`, pois várias naturezas poderão eventualmente possuir a mesma direção financeira.
+
+Na operação, portanto, `tipo` não deve ser uma escolha independente do usuário.
+
+Descrição registrada no campo `tipo`:
+
+> Direção financeira da movimentação, determinada pela natureza.
+
+---
+
+### Meio da movimentação
+
+Foi definido o domínio inicial de `meio_movimentacao`:
+
+```text
+PIX
+CARTAO_DEBITO
+CARTAO_CREDITO
+CONVENIO
+DINHEIRO
+VALE
+```
+
+O meio é independente da natureza.
+
+Exemplo:
+
+```text
+LIQUIDACAO | ENTRADA | PIX
+PAGAMENTO  | SAIDA   | PIX
+```
+
+Descrição registrada:
+
+> Meio utilizado para realizar a movimentação financeira.
+
+Não foi criada collection específica para meios de movimentação neste momento.
+
+---
+
+### Categoria financeira
+
+Paulo definiu:
+
+> "Categoria é a motivação do fato gerador da entrada ou saída."
+
+A partir dessa definição foi consolidado:
+
+```text
+natureza
+→ o que aconteceu financeiramente
+
+tipo
+→ direção da movimentação
+
+categoria_ref
+→ motivação econômica ou operacional
+
+meio_movimentacao
+→ como ocorreu
+```
+
+Exemplo:
+
+```text
+natureza:      PAGAMENTO
+tipo:          SAIDA
+categoria_ref: ALUGUEL
+```
+
+Foi registrada na descrição da collection `categorias_financeiras`:
+
+> Categoria identifica a motivação econômica ou operacional que originou o fato gerador de uma entrada ou saída financeira.
+
+No campo `categoria_ref` de `fluxo_caixa`:
+
+> Categoria que identifica a motivação da movimentação financeira.
+
+---
+
+### Colaborador relacionado à movimentação
+
+Durante a análise de `colaborador_ref`, Paulo esclareceu:
+
+> "colaborador_ref tem presença no caixa para conhecer a produtividade e comissões."
+
+Ficou estabelecido que `colaborador_ref` não representa o usuário responsável pelo lançamento.
+
+Essa responsabilidade pertence a:
+
+```text
+criado_por_ref
+```
+
+`colaborador_ref` identifica, quando aplicável, o colaborador economicamente relacionado ao fato.
+
+Isso permite consultas financeiras relacionadas a produtividade e comissão sem transformar o fluxo de caixa na fonte histórica das regras de comissão.
+
+A fonte detalhada continua sendo o Atendimento e seus snapshots.
+
+Descrição registrada:
+
+> Colaborador economicamente relacionado à movimentação. Não representa o usuário que realizou o lançamento.
+
+O campo é opcional.
+
+Exemplo de uma despesa sem colaborador:
+
+```text
+PAGAMENTO
+SAIDA
+categoria: ALUGUEL
+colaborador_ref: vazio
+```
+
+---
+
+### Atendimento relacionado
+
+`atendimento_ref` também permanece opcional.
+
+Ele somente deve existir quando a movimentação financeira decorrer de um Atendimento.
+
+Descrição registrada:
+
+> Preenchido somente quando a movimentação decorre de um Atendimento.
+
+Exemplos:
+
+```text
+Liquidação de Atendimento
+→ atendimento_ref preenchido
+
+Pagamento de aluguel
+→ atendimento_ref vazio
+
+Pagamento de energia
+→ atendimento_ref vazio
+```
+
+---
+
+### Data do fato financeiro
+
+Foi consolidada a diferença entre:
+
+```text
+movimentado_em
+→ momento em que o fato financeiro ocorreu
+
+criado_em
+→ momento em que o registro foi criado no MotionLab
+```
+
+Descrição registrada para `movimentado_em`:
+
+> Data e hora em que a movimentação financeira efetivamente ocorreu.
+
+Isso permite registrar posteriormente uma movimentação sem perder o momento real do fato.
+
+---
+
+### Descrição da movimentação
+
+O campo `descricao` não substitui a categoria.
+
+A categoria classifica o fato; a descrição explica aquela ocorrência específica.
+
+Exemplo:
+
+```text
+categoria_ref → MANUTENCAO
+
+descricao →
+Troca da resistência do secador da recepção
+```
+
+Descrição registrada:
+
+> Informação complementar que descreve a ocorrência específica da movimentação.
+
+---
+
+### Valor
+
+Foi evitado atribuir ao campo `valor` conceitos como valor bruto ou líquido, pois isso introduziria uma semântica desnecessária ao campo.
+
+Descrição simplificada:
+
+> Valor da movimentação financeira.
+
+As regras de interpretação pertencem ao domínio e à documentação, não precisam ser repetidas integralmente na descrição do campo.
+
+---
+
+### Rede e estabelecimento
+
+Foram mantidas diretamente no documento:
+
+```text
+rede_ref
+estabelecimento_ref
+```
+
+Mesmo sendo possível descobrir a Rede através do estabelecimento, `rede_ref` permanece intencionalmente no movimento.
+
+Responsabilidades:
+
+```text
+rede_ref
+→ identifica o tenant
+
+estabelecimento_ref
+→ identifica a unidade onde ocorreu o fato
+```
+
+Descrições registradas:
+
+```text
+rede_ref:
+Rede à qual pertence a movimentação financeira.
+
+estabelecimento_ref:
+Estabelecimento onde ocorreu a movimentação financeira.
+```
+
+A redundância é intencional e favorece isolamento de tenant, consultas e auditoria.
+
+---
+
+## Separação entre Fluxo de Caixa e Caixa Físico
+
+Durante a análise surgiu inicialmente a possibilidade de incluir em `fluxo_caixa.natureza`:
+
+```text
+ABERTURA_CAIXA
+SANGRIA
+FECHAMENTO_CAIXA
+```
+
+A discussão mostrou, entretanto, que isso misturaria dois domínios diferentes.
+
+Paulo observou:
+
+> "Temos que entender que o fluxo de caixa é do estabelecimento; o fechamento e abertura é do caixa, inclusive podem haver várias aberturas e fechamento no dia."
+
+Essa observação alterou a direção da modelagem.
+
+Foi estabelecida a distinção:
+
+```text
+FLUXO_CAIXA
+→ representa o fluxo financeiro do estabelecimento.
+
+CAIXA_FISICO
+→ representa o ponto físico onde existe numerário.
+
+SESSAO_CAIXA
+→ representa um período entre abertura e fechamento daquele caixa.
+```
+
+Um estabelecimento poderá possuir mais de um caixa físico.
+
+Além disso, o mesmo caixa poderá possuir várias sessões no mesmo dia.
+
+Exemplo:
+
+```text
+Caixa 01
+
+08:00 → abertura
+12:00 → fechamento
+
+13:00 → nova abertura
+19:00 → novo fechamento
+```
+
+Paulo complementou:
+
+> "Abertura e fechamento é do caixa físico, que tem sangria e fechamento de caixa."
+
+Portanto:
+
+```text
+ABERTURA
+SANGRIA
+FECHAMENTO
+```
+
+não serão, neste momento, naturezas de `fluxo_caixa`.
+
+Pertencerão à futura modelagem específica do caixa físico e suas sessões.
+
+### Consequência importante
+
+Uma sangria não representa necessariamente uma despesa.
+
+O dinheiro apenas deixa determinado caixa físico, mas continua pertencendo ao estabelecimento.
+
+Da mesma forma, o valor colocado para abertura de caixa não representa receita.
+
+Essa separação evita que movimentos operacionais do numerário contaminem indicadores de receita e despesa.
+
+---
+
+## Teste do modelo com adiantamento e prestação de contas
+
+Outro cenário foi utilizado para testar os limites do `fluxo_caixa`.
+
+Paulo apresentou o exemplo:
+
+> "Como ficaria se o gerente retirar no banco um valor para fazer uma viagem de carro para um treinamento a 300 km de distância. A prestação de conta ocorrerá dias depois."
+
+Inicialmente foi considerada a possibilidade de criar uma natureza `ADIANTAMENTO`.
+
+A análise mostrou que o cenário envolve uma jornada maior:
+
+```text
+liberação do recurso
+        ↓
+responsável recebe o valor
+        ↓
+realiza a viagem
+        ↓
+realiza despesas
+        ↓
+presta contas
+        ↓
+devolve saldo ou recebe diferença
+```
+
+Paulo então observou:
+
+> "Parece que esta jornada não é do fluxo de caixa."
+
+A observação foi adotada como decisão arquitetural.
+
+### Decisão
+
+Adiantamento e prestação de contas constituem um processo de negócio próprio.
+
+Esse processo poderá produzir movimentações financeiras, mas sua jornada não deve ser modelada dentro de `fluxo_caixa`.
+
+Foi consolidado o princípio:
+
+> O processo de negócio ocorre em seu próprio domínio; o `fluxo_caixa` registra os efeitos financeiros produzidos por esse processo.
+
+Portanto, não foi adicionada a natureza `ADIANTAMENTO`.
+
+---
+
+## Limite atual de `natureza`
+
+Depois de separar:
+
+* caixa físico;
+* sessões de caixa;
+* sangrias;
+* abertura e fechamento;
+* adiantamentos;
+* prestação de contas;
+
+o domínio atual de `fluxo_caixa.natureza` permanece propositalmente simples:
+
+```text
+LIQUIDACAO → ENTRADA
+PAGAMENTO  → SAIDA
+```
+
+Novas naturezas somente deverão ser introduzidas quando representarem efetivamente um novo tipo de fato financeiro pertencente ao domínio de `fluxo_caixa`, e não apenas porque outro processo de negócio possui consequência financeira.
+
+---
+
+## Estado final da collection `fluxo_caixa`
+
+Após conferência visual do schema no FlutterFlow, a collection ficou:
+
+```text
+fluxo_caixa
+├── tipo                 String
+├── valor                Double
+├── descricao            String
+├── meio_movimentacao    String
+├── movimentado_em       DateTime
+├── rede_ref             Doc Ref → redes_franquias
+├── estabelecimento_ref  Doc Ref → estabelecimentos
+├── criado_em            DateTime
+├── criado_por_ref       Doc Ref → users
+├── colaborador_ref      Doc Ref → colaboradores
+├── categoria_ref        Doc Ref → categorias_financeiras
+├── atualizado_em        DateTime
+├── atualizado_por_ref   Doc Ref → users
+├── atendimento_ref      Doc Ref → atendimentos
+└── natureza             String
+```
+
+### Situação
+
+**`fluxo_caixa`: HIGIENIZADO.**
+
+A revisão também consolidou uma fronteira arquitetural importante:
+
+```text
+Atendimento
+→ fato operacional
+
+Fluxo de Caixa
+→ fato financeiro do estabelecimento
+
+Caixa Físico / Sessão
+→ controle do numerário físico
+
+Prestação de Contas
+→ processo administrativo próprio
+```
+
+Essa separação reduz acoplamento entre domínios e evita transformar `fluxo_caixa` em uma collection genérica responsável por explicar todos os processos financeiros e administrativos do MotionLab.
+
+```
+
+Esse bloco fecha bem a parte que desenvolvemos depois do café e, principalmente, registra **as suas intervenções que mudaram a modelagem**, em vez de guardar somente a solução final. 
+```
+
 ## 19/09/2026 — Higienização do modelo de dados Firestore
+Exatamente. E isso fortalece bastante o modelo para **conciliação financeira/contábil**.
+
+Então fechamos esta regra:
+
+> **Cada fato financeiro relevante gera sua própria movimentação em `fluxo_caixa`.**
+
+Por exemplo, uma venda de R$100 no cartão poderia resultar em fatos distintos:
+
+```text
+1. LIQUIDAÇÃO
+   valor: 100,00
+   movimentado_em: 10/09
+
+2. CRÉDITO
+   valor: 97,50
+   movimentado_em: 11/09
+
+3. TAXA
+   valor: 2,50
+   movimentado_em: 11/09
+```
+
+Isso permite posteriormente confrontar os movimentos do MotionLab com extrato bancário, adquirente/gateway e até exportação para contabilidade sem perder a origem de cada valor.
+
+E aparece uma consequência importante: **`tipo = ENTRADA | SAIDA` não é suficiente para identificar qual fato aconteceu.** Ele informa apenas o sentido financeiro.
+
+Portanto, o próximo campo que eu criaria é:
+
+```text
+natureza   String
+```
+
+Com domínio controlado futuramente, por exemplo `LIQUIDACAO`, `CREDITO`, `DESPESA`, `TAXA`, `ESTORNO` etc.
+
+Faça somente **`natureza` → String**. Depois refinamos o domínio sem correr para criar mais campos.
+Sim. E eu separaria isso em **duas responsabilidades**, para não transformar `fluxo_caixa` numa estrutura contábil complexa agora.
+
+Hoje precisamos registrar corretamente os fatos:
+
+```text
+SERVIÇO realizado
+      ↓
+receita / liquidação / crédito
+
+PRODUTO vendido
+      ↓
+receita / liquidação / crédito
+
+TAXA financeira
+      ↓
+saída / despesa
+```
+
+No futuro, uma camada de **integração/exportação contábil** poderá interpretar esses eventos e convertê-los para o formato exigido pelo sistema contábil/ERP. Não precisamos construir essa camada agora.
+
+Isso reforça uma coisa importante: `categoria_ref` diz **o que economicamente é aquele movimento** — serviço, produto, taxa, aluguel etc. Já o `natureza` que acabamos de discutir diria **qual evento financeiro ocorreu** — liquidação, crédito, estorno etc.
+
+Assim não misturamos:
+
+```text
+categoria = SERVIÇOS
+natureza  = LIQUIDACAO
+
+categoria = SERVIÇOS
+natureza  = CREDITO
+
+categoria = TAXA_CARTAO
+natureza  = TAXA
+```
+
+E futuramente a exportação contábil consegue trabalhar com essa combinação.
+
+Portanto, continuo com o passo anterior: **crie apenas `natureza` como String no `fluxo_caixa`**. O mecanismo de exportação fica como evolução futura.
+Exatamente. Esse cuidado é **fundamental**. Se somarmos indiscriminadamente os documentos de `fluxo_caixa`, podemos contar duas vezes o mesmo valor econômico.
+
+No exemplo de R$100 no cartão:
+
+```text
+Fato gerador: SERVIÇO = R$ 100
+
+LIQUIDAÇÃO = R$ 100
+CRÉDITO    = R$ 97,50
+TAXA       = R$ 2,50
+```
+
+Não podemos concluir:
+
+```text
+Receita = 100 + 97,50 = 197,50  ❌
+```
+
+São **eventos financeiros diferentes ligados ao mesmo fato gerador**.
+
+Isso confirma algo importante da arquitetura que já vínhamos construindo: **faturamento/receita não deve ser calculado simplesmente somando `fluxo_caixa`**. A receita econômica nasce do fato operacional — serviço realizado ou produto vendido. O `fluxo_caixa` registra os eventos financeiros decorrentes dele.
+
+Então eu acrescentaria um conceito essencial ao modelo: as movimentações financeiras precisam conseguir compartilhar uma **origem comum**. Em vez de resolver isso agora apenas com `agendamento_ref`, eu sugiro que nosso próximo passo seja definir precisamente essa identificação do **fato gerador** antes de criar `natureza`.
+
+Assim evitamos desenhar um `fluxo_caixa` que depois permita dupla contabilização.
+Sim. E isso amplia a importância do **fato gerador**: não é apenas para evitar somatório duplicado; é também para **explicar e investigar o que aconteceu**.
+
+Imagine uma divergência meses depois. Precisamos conseguir reconstruir algo como:
+
+```text
+Atendimento #A123
+Serviço realizado ........ R$ 100,00
+Pagamento cartão .......... R$ 100,00
+Crédito recebido .......... R$ 97,50
+Taxa adquirente ........... R$   2,50
+```
+
+Todas essas ocorrências pertencem à mesma história. Se estiverem apenas espalhadas pelo `fluxo_caixa`, alguém terá que deliberar manualmente para descobrir a relação — e isso pode virar atendimento de suporte recorrente, exatamente como você apontou.
+
+Então eu mudaria nosso próximo passo: **não crie `natureza` ainda**.
+
+Precisamos primeiro modelar uma identificação comum do fato gerador, para que o sistema consiga reunir automaticamente todos os eventos decorrentes da mesma operação. Isso servirá para conciliação, auditoria, diagnóstico e suporte.
+
+Esse é o próximo ponto que devemos desenhar antes de acrescentar outro campo ao `fluxo_caixa`.
+Pois é. 😄 O código é quase a última parte da história.
+
+O que estamos fazendo no `fluxo_caixa` mostra isso muito bem. Tecnicamente seria fácil criar campos, gravar documentos e fazer `SUM(valor)`. Só que o problema real aparece quando perguntamos: **“R$100 de liquidação e R$97,50 de crédito são duas receitas?”** Não. São eventos diferentes decorrentes de um mesmo fato.
+
+É aí que entra engenharia de software: entender o negócio, definir o significado dos dados, preservar histórico, permitir auditoria e impedir que uma decisão aparentemente simples produza erro meses depois.
+
+E tem um detalhe interessante para o MotionLab: essa discussão que tivemos agora provavelmente evita um problema que só apareceria **depois que o sistema estivesse em produção**, justamente na hora de conciliar valores ou explicar uma divergência para um cliente.
+
+Esse trecho, inclusive, merece entrar no `FLUXOTRABALHO.md`. É um ótimo exemplo da diferença entre **“fazer funcionar” e “projetar para continuar funcionando”**.
+
+Isso realmente tira uma parte importante do valor do diário, porque muitas vezes **é a sua pergunta que mostra de onde nasceu a decisão**. Minha resposta sozinha pode parecer uma conclusão pronta.
+
+No exemplo de agora, a sequência é muito mais rica:
+
+> **Paulo:** “Certo, mas cuidado com o somatório, pois pode ter duas ocorrências que têm o mesmo fato gerador.”
+>
+> **Decisão:** liquidação, crédito e taxa podem decorrer do mesmo fato gerador e não podem ser somados indiscriminadamente como receita.
+>
+> **Paulo:** “Ou mesmo que precise deliberar para compreender o ocorrido, gerando atendimento recorrente.”
+>
+> **Consequência arquitetural:** além de evitar dupla contabilização, precisamos relacionar os eventos ao mesmo fato gerador para permitir rastreabilidade, auditoria, conciliação e reduzir investigação manual no suporte.
+
+Isso conta a **história do raciocínio**, não apenas a solução.
+
+Daqui para frente, quando você disser que algo é para o `FLUXOTRABALHO.md`, eu posso montar o trecho incluindo **“Pergunta/Observação → Discussão → Decisão → Consequência”**, preservando também suas intervenções essenciais. Assim o diário fica muito mais próximo da jornada real — e muito melhor como matéria-prima para aquele futuro e-book.
+
+Claro. Para o `FLUXOTRABALHO.md`, eu registraria preservando **a discussão que levou à decisão**, não apenas a conclusão:
+
+````markdown
+## Refinamento do conceito de Atendimento e Fato Gerador Financeiro
+
+Durante a revisão da collection `fluxo_caixa`, surgiu a necessidade de identificar corretamente o fato gerador das movimentações financeiras.
+
+Inicialmente foi considerada a possibilidade de utilizar `agendamento_ref` para relacionar uma movimentação financeira à sua origem.
+
+### Questionamento
+
+Foi observado que:
+
+> Realizar é prestar o serviço ou vender o produto.  
+> Agendar é organizar a prestação do serviço.
+
+Essa distinção mostrou que o agendamento não representa necessariamente um fato econômico ou financeiro.
+
+Um agendamento pode:
+
+- ser realizado;
+- ser cancelado;
+- resultar em não comparecimento;
+- nunca gerar receita.
+
+Portanto, o agendamento representa a organização prévia da operação, e não sua realização.
+
+### Refinamento do conceito de Atendimento
+
+Na sequência foi esclarecido outro ponto importante:
+
+> Atendimento é tanto para serviço como para produto.
+
+Com isso, o conceito de Atendimento foi ampliado.
+
+O Atendimento representa a operação efetivamente realizada com o cliente e pode conter:
+
+- somente serviço;
+- somente produto;
+- serviço e produto simultaneamente.
+
+Exemplo:
+
+```text
+Agendamento
+    ↓
+Atendimento #123
+    ├── Serviço: Corte ........ R$ 50,00
+    └── Produto: Pomada ....... R$ 30,00
+                 ↓
+          Total: R$ 80,00
+````
+
+Uma venda avulsa de produto também pode constituir um Atendimento, mesmo que não exista serviço nem agendamento anterior.
+
+### Decisão arquitetural
+
+Ficou estabelecida a seguinte separação de responsabilidades:
+
+```text
+AGENDAMENTO
+→ organiza previamente a prestação do serviço
+→ pode ou não existir
+
+ATENDIMENTO
+→ registra aquilo que efetivamente ocorreu
+→ pode conter serviços, produtos ou ambos
+→ representa o fato operacional
+
+FLUXO_CAIXA
+→ registra os fatos financeiros decorrentes do atendimento
+```
+
+Consequentemente:
+
+> O Atendimento registra o fato operacional; o `fluxo_caixa` registra os fatos financeiros decorrentes dele.
+
+### Relação com liquidação, crédito e taxas
+
+Um mesmo Atendimento pode gerar diversos eventos financeiros.
+
+Exemplo:
+
+```text
+Atendimento #123
+Total realizado: R$ 100,00
+        ↓
+Fluxo financeiro
+├── Liquidação ........ R$ 100,00
+├── Crédito ........... R$ 97,50
+└── Taxa .............. R$  2,50
+```
+
+Esses registros não representam três receitas diferentes.
+
+São eventos financeiros distintos decorrentes do mesmo fato operacional.
+
+Essa distinção é necessária para evitar dupla contabilização e permitir:
+
+* conciliação financeira;
+* futura conciliação contábil;
+* auditoria;
+* rastreabilidade;
+* investigação de divergências;
+* redução de atendimentos de suporte causados pela dificuldade de reconstruir o ocorrido.
+
+### Consequência para o modelo
+
+O atual `agendamento_ref` de `fluxo_caixa` não deve ser considerado o identificador do fato gerador.
+
+O modelo deverá evoluir para que as movimentações financeiras possam ser relacionadas ao Atendimento que efetivamente originou os eventos financeiros.
+
+A estrutura definitiva dessa relação ainda será definida antes de qualquer alteração adicional no schema.
+
+```
+
+Esse trecho é importante porque registra justamente **como uma discussão aparentemente simples sobre `fluxo_caixa` levou à definição do que é um Atendimento no domínio do MotionLab**. 
+```
+
+
+
+
 Sim. E isso esclarece a arquitetura.
 
 Uma **venda avulsa de produto** não precisa nascer de um `agendamento`. Ela pode nascer de uma operação própria de venda, acessada por uma página de vendas ou por uma modal na `homePageAtendimento`.
@@ -206,6 +1501,8 @@ Isso permitiu transformar gradualmente o modelo legado sem comprometer funcional
 A `movimentacao_estoque` ficou higienizada.
 
 Próxima análise após o almoço: `fluxo_caixa`, considerando a separação já definida entre fato operacional, liquidação do cliente e crédito efetivamente disponibilizado ao estabelecimento.
+
+
 ## 19/09/2026 — Higienização e evolução do modelo de dados
 
 Perfeito. Agora o `fluxo_caixa` ficou sem os três IDs String redundantes:
