@@ -1,3 +1,807 @@
+## 21/09/2026 — Higienização da collection `clientes`
+
+## Higienização da collection `agendamentos`
+
+Após a conclusão da revisão da collection `clientes`, foi iniciada a análise da collection `agendamentos`.
+
+A estrutura encontrada no FlutterFlow era:
+
+```text
+agendamentos
+├── data_hora            DateTime
+├── status               String
+├── estabelecimento_ref  Doc Ref → estabelecimentos
+├── criado_em            DateTime
+├── atualizado_em        DateTime
+├── criado_por_ref       Doc Ref → users
+├── atualizado_por_ref   Doc Ref → users
+├── servicos_ref         List<Doc Ref → servicos>
+├── colaborador_ref      Doc Ref → colaboradores
+└── cliente_ref          Doc Ref → clientes
+```
+
+---
+
+### Responsabilidade da collection
+
+Antes da análise individual dos campos, foi reafirmada a separação entre `agendamentos` e `atendimentos`.
+
+```text
+AGENDAMENTO
+→ representa uma previsão e organiza uma intenção futura de atendimento.
+
+ATENDIMENTO
+→ registra o fato operacional efetivamente ocorrido.
+```
+
+Portanto, o Agendamento responde essencialmente:
+
+```text
+quem       → cliente_ref
+onde       → estabelecimento_ref
+com quem   → colaborador_ref
+o quê      → servicos_ref
+quando     → data_hora
+situação   → status
+```
+
+O que efetivamente ocorreu será posteriormente registrado em `atendimentos`.
+
+---
+
+## Data e hora
+
+Foi analisado inicialmente se seria necessário armazenar separadamente o horário previsto de término do Agendamento.
+
+Paulo definiu:
+
+> "Ele deve ser calculado a partir de `data_hora + duração prevista dos serviços`."
+
+Assim, não será criado um campo como:
+
+```text
+data_hora_fim
+```
+
+O horário final é um dado derivável.
+
+Exemplo:
+
+```text
+data_hora = 14:00
+
+Corte → 30 minutos
+Barba → 20 minutos
+
+duração prevista = 50 minutos
+término previsto = 14:50
+```
+
+Paulo refinou ainda a semântica de `data_hora`:
+
+> "Determina a previsão de início do atendimento."
+
+Descrição definida:
+
+> **Determina a previsão de início do Atendimento.**
+
+Portanto:
+
+```text
+agendamentos.data_hora
+→ previsão de início
+
+duração prevista dos serviços
+→ determina o intervalo reservado na agenda
+```
+
+A disponibilidade do colaborador deverá considerar todo o intervalo calculado, e não apenas verificar se o instante de `data_hora` está disponível.
+
+---
+
+## Status do Agendamento
+
+Inicialmente foram apresentados os seguintes estados:
+
+```text
+AGENDADO
+CONFIRMADO
+NAO_COMPARECEU
+CANCELADO
+AGUARDANDO
+```
+
+Durante a análise, Paulo esclareceu uma particularidade importante sobre `AGUARDANDO`:
+
+> "Eu queria dizer no aguardando a manifestação do colaborador em demonstrar ciência da agenda."
+
+Portanto, `AGUARDANDO` não significa que o Cliente chegou ao estabelecimento e está esperando ser atendido.
+
+Ele representa um novo Agendamento que ainda aguarda a ciência do Colaborador.
+
+A jornada ficou definida como:
+
+```text
+AGUARDANDO
+→ Agendamento criado e aguardando ciência do Colaborador.
+
+AGENDADO
+→ Colaborador tomou ciência do Agendamento.
+
+CONFIRMADO
+→ Cliente confirmou o comparecimento.
+
+ATENDIDO
+→ compromisso agendado foi cumprido.
+
+NAO_COMPARECECEU
+→ Cliente não compareceu.
+
+CANCELADO
+→ Agendamento foi cancelado.
+```
+
+Foi acrescentado `ATENDIDO` em vez de utilizar `REALIZADO`.
+
+A escolha evita confundir o encerramento da jornada do Agendamento com o estado operacional do Atendimento:
+
+```text
+agendamentos.status = ATENDIDO
+→ o compromisso agendado foi cumprido.
+
+atendimentos.status = REALIZADO
+→ o fato operacional foi efetivamente concluído.
+```
+
+Descrição definida para `status`:
+
+> **Indica a situação atual do Agendamento ao longo de sua jornada.**
+
+---
+
+## Cancelamento
+
+Foi analisada também a autoridade para cancelamento do Agendamento.
+
+Paulo definiu:
+
+> "O cancelamento pode ser pelo estabelecimento ou pelo cliente. O colaborador solicita o cancelamento à gerência ou a gerência o faz de ofício."
+
+A partir disso, foi estabelecido que o Colaborador não efetiva diretamente o cancelamento.
+
+Posteriormente, Paulo detalhou os cenários:
+
+> "Cancelado por cliente logado ficará com status cancelado e atualizado por cliente."
+
+> "Cancelado por cliente solicitando status cancelado e atualizado por gerente."
+
+> "Cancelado por colaborador solicitando status cancelado e atualizado por gerente."
+
+> "Cancelado por motivos adm status cancelado e atualizado por gerente."
+
+A regra ficou:
+
+```text
+Cliente logado cancela
+→ status = CANCELADO
+→ atualizado_por_ref = user do Cliente
+
+Cliente solicita cancelamento à gerência
+→ status = CANCELADO
+→ atualizado_por_ref = user do Gerente
+
+Colaborador solicita cancelamento
+→ status = CANCELADO
+→ atualizado_por_ref = user do Gerente
+
+Gerência cancela administrativamente
+→ status = CANCELADO
+→ atualizado_por_ref = user do Gerente
+```
+
+Foi consolidado o princípio:
+
+> **Quem solicita o cancelamento não é necessariamente quem executa a alteração no sistema.**
+
+Por isso, não foi considerado necessário criar neste momento um campo específico como:
+
+```text
+cancelado_por_ref
+```
+
+O `atualizado_por_ref` registra quem efetivamente realizou a alteração.
+
+Caso futuramente exista necessidade de registrar solicitante, justificativa ou motivo administrativo, essa necessidade será modelada especificamente, sem sobrecarregar antecipadamente o `status`.
+
+---
+
+## Estabelecimento
+
+O campo:
+
+```text
+estabelecimento_ref
+```
+
+determina a unidade da Rede para a qual o atendimento foi agendado.
+
+Paulo definiu sua descrição como:
+
+> **Estabelecimento para onde foi agendado o Atendimento.**
+
+Esse vínculo permanece necessário mesmo que o Cliente pertença à Rede.
+
+Assim:
+
+```text
+Cliente
+→ pertence à Rede
+
+Agendamento
+→ determina em qual Estabelecimento o Cliente pretende ser atendido
+
+Atendimento
+→ registra onde o fato operacional efetivamente ocorreu
+```
+
+---
+
+## Auditoria
+
+Foi identificado o conjunto padrão já adotado pelo MotionLab:
+
+```text
+criado_em
+criado_por_ref
+atualizado_em
+atualizado_por_ref
+```
+
+Paulo resumiu:
+
+> "Clássico conjunto de auditoria."
+
+Nenhuma alteração foi necessária nesses campos.
+
+O `atualizado_por_ref` também participa da rastreabilidade das alterações realizadas no Agendamento, inclusive cancelamentos.
+
+---
+
+## Serviços previstos
+
+O campo:
+
+```text
+servicos_ref
+List<Doc Ref → servicos>
+```
+
+foi mantido.
+
+Descrição definida:
+
+> **Serviços previstos para serem realizados no Agendamento.**
+
+A utilização da palavra **previstos** foi considerada importante porque o conteúdo do Agendamento pode ser diferente do Atendimento efetivamente realizado.
+
+Paulo apresentou o exemplo:
+
+> "Um agendamento pode prever cabelo e barba e o cliente ao chegar afirma: só vou cortar, pois tenho um compromisso e não tenho tempo para a barba."
+
+Nesse cenário:
+
+```text
+AGENDAMENTO ORIGINAL
+14:00
+├── Cabelo → 30 min
+└── Barba  → 20 min
+
+Previsão:
+14:00 até 14:50
+```
+
+Ao Cliente decidir realizar apenas o cabelo, o serviço de barba deverá ser retirado/cancelado do Agendamento.
+
+Paulo confirmou:
+
+> "Correto, cancela ou retira o serviço agendado."
+
+O Agendamento passa então a representar a previsão vigente:
+
+```text
+AGENDAMENTO ALTERADO
+14:00
+└── Cabelo → 30 min
+
+Nova previsão:
+14:00 até 14:30
+```
+
+Os 20 minutos anteriormente reservados para a barba retornam à disponibilidade da agenda.
+
+Isso pode permitir:
+
+```text
+→ antecipação de outro Agendamento;
+→ criação de um encaixe;
+→ melhor aproveitamento da agenda do Colaborador.
+```
+
+Foi feita uma distinção importante:
+
+> **Não se cancela um Atendimento de barba, pois ele nunca ocorreu. Retira-se ou cancela-se um serviço previsto no Agendamento.**
+
+Quando o Atendimento for registrado, ele conterá somente o fato efetivamente ocorrido:
+
+```text
+AGENDAMENTO
+→ Cabelo + Barba
+→ alterado para somente Cabelo
+
+ATENDIMENTO
+→ Cabelo
+```
+
+Essa separação também impede que um serviço apenas previsto seja posteriormente interpretado como realizado ou faturável.
+
+Assim:
+
+> **Agendamento registra previsão; Atendimento registra fato.**
+
+No MVP, `servicos_ref` representa a previsão vigente.
+
+Caso futuramente seja necessário preservar todo o histórico das inclusões e retiradas de serviços da agenda, isso poderá ser tratado por mecanismo próprio de histórico/auditoria, sem aumentar antecipadamente a complexidade da collection.
+
+---
+
+## Colaborador
+
+O campo:
+
+```text
+colaborador_ref
+Doc Ref → colaboradores
+```
+
+foi mantido.
+
+Descrição:
+
+> **Colaborador para o qual o Atendimento foi agendado.**
+
+O Colaborador também participa do cálculo da duração prevista quando houver configuração específica de duração para determinado serviço.
+
+---
+
+## Cliente
+
+O campo:
+
+```text
+cliente_ref
+Doc Ref → clientes
+```
+
+foi mantido.
+
+Descrição:
+
+> **Cliente para o qual o Atendimento foi agendado.**
+
+Isso completa a relação básica:
+
+```text
+Cliente
+   │
+   ▼
+Agendamento
+   ├── Estabelecimento
+   ├── Colaborador
+   ├── Serviços previstos
+   ├── Previsão de início
+   └── Status
+```
+
+---
+
+## Estado final
+
+A estrutura permaneceu:
+
+```text
+agendamentos
+├── data_hora            DateTime
+├── status               String
+├── estabelecimento_ref  Doc Ref → estabelecimentos
+├── criado_em            DateTime
+├── atualizado_em        DateTime
+├── criado_por_ref       Doc Ref → users
+├── atualizado_por_ref   Doc Ref → users
+├── servicos_ref         List<Doc Ref → servicos>
+├── colaborador_ref      Doc Ref → colaboradores
+└── cliente_ref          Doc Ref → clientes
+```
+
+Nenhum novo campo foi necessário durante a higienização.
+
+### Situação
+
+**`agendamentos`: HIGIENIZADA.**
+
+A principal separação de domínio consolidada foi:
+
+> **O Agendamento registra aquilo que está previsto para acontecer. O Atendimento registra aquilo que efetivamente aconteceu.**
+
+Essa distinção permite alterar serviços e horários previstos sem alterar fatos operacionais, recalcular a disponibilidade da agenda e manter o Atendimento como fonte do que efetivamente foi realizado.
+
+Claro. Eu acrescentaria este bloco ao `FLUXOTRABALHO.md`, preservando novamente as observações que levaram às decisões:
+
+````markdown
+## Higienização da collection `clientes`
+
+Após a conclusão da revisão de `fluxo_caixa`, foi iniciada a análise da collection `clientes`.
+
+A estrutura encontrada no FlutterFlow era:
+
+```text
+clientes
+├── user_ref             Doc Ref → users
+├── nome                 String
+├── telefone             String
+├── email                String
+├── ativo                Boolean
+├── criado_em            DateTime
+├── atualizado_em        DateTime
+├── criado_por_ref       Doc Ref → users
+├── atualizado_por_ref   Doc Ref → users
+└── rede_ref             Doc Ref → redes_franquias
+````
+
+---
+
+### Cliente pertence à Rede ou ao Estabelecimento?
+
+A primeira questão analisada foi se o Cliente deveria pertencer diretamente a um Estabelecimento ou à Rede.
+
+Paulo observou:
+
+> "O cliente é super importante pois é quem mantém o estabelecimento, mas em estatísticas e movimentos o atendimento é quem tem valor para o dono."
+
+Essa observação separou dois conceitos:
+
+```text
+CLIENTE
+→ entidade de relacionamento
+
+ATENDIMENTO
+→ fato operacional e econômico
+```
+
+Um Cliente pode frequentar diferentes estabelecimentos da mesma Rede sem precisar possuir cadastros diferentes.
+
+Exemplo:
+
+```text
+Rede
+ └── Cliente João
+      ├── Atendimento → Matriz
+      ├── Atendimento → Filial 01
+      └── Atendimento → Filial 02
+```
+
+Os indicadores financeiros e operacionais não dependem do local onde o Cliente está cadastrado.
+
+O estabelecimento responsável pelo fato econômico é determinado pelo próprio Atendimento.
+
+Paulo acrescentou outro aspecto importante:
+
+> "A experiência do cliente é mais salutar e demonstra organização em não fazer as mesmas perguntas aqui e lá."
+
+A decisão também melhora a experiência do Cliente.
+
+Uma pessoa já identificada pela Rede não deverá fornecer novamente seus dados simplesmente porque está sendo atendida em outra unidade.
+
+### Decisão
+
+> **O Cliente pertence à Rede e pode ser reconhecido pelos estabelecimentos que a compõem. O Atendimento determina em qual estabelecimento ocorreu a relação operacional e econômica.**
+
+Portanto:
+
+```text
+clientes.rede_ref
+→ mantido
+
+clientes.estabelecimento_ref
+→ não necessário
+```
+
+---
+
+## Autoagendamento
+
+Foi discutida a função de:
+
+```text
+user_ref
+```
+
+Paulo esclareceu:
+
+> "Este campo seria para clientes que fazem seu auto agendamento logando no app."
+
+Assim, Cliente e usuário do sistema permanecem conceitos distintos.
+
+```text
+Cliente sem user_ref
+→ possui cadastro na Rede
+→ pode ser atendido normalmente
+→ não possui necessariamente acesso ao app
+
+Cliente com user_ref
+→ possui identidade de acesso
+→ pode utilizar funcionalidades destinadas ao Cliente
+→ pode realizar autoagendamento
+```
+
+Caso um Cliente já cadastrado posteriormente crie acesso ao app, não deverá ser criado outro Cliente.
+
+O `user_ref` será vinculado ao cadastro existente.
+
+Descrição definida:
+
+> **Usuário vinculado ao Cliente quando este possui acesso ao app para autoagendamento.**
+
+---
+
+## Descrição conceitual da collection
+
+Durante a discussão do autoagendamento, foi consolidada a descrição da collection:
+
+> **O Cliente pertence à Rede e pode ser reconhecido pelos estabelecimentos que a compõem. O Atendimento determina em qual estabelecimento ocorreu a relação operacional e econômica. No autoagendamento, o Cliente escolhe o estabelecimento e o colaborador para realizar o agendamento.**
+
+A escolha de data e horário não foi explicitada nessa descrição porque já está semanticamente compreendida no ato de realizar um agendamento.
+
+---
+
+## Nome
+
+O campo:
+
+```text
+nome
+```
+
+representa o nome completo utilizado para identificação pessoal do Cliente.
+
+Descrição:
+
+> **Nome completo do Cliente para identificação pessoal.**
+
+Não foi considerada necessária a alteração do nome físico do campo para `nome_completo`.
+
+---
+
+## Telefone / WhatsApp
+
+Paulo definiu uma finalidade operacional importante para o telefone:
+
+> "Telefone necessário para avisar de um cancelamento inesperado, lembrar do agendamento e preferencialmente seja o WhatsApp."
+
+Descrição definida:
+
+> **Telefone de contato do Cliente, preferencialmente WhatsApp, utilizado para comunicações relacionadas ao atendimento e agendamento.**
+
+O campo permanece `String`.
+
+A normalização futura de DDI, DDD e número será tratada quando a jornada de comunicação for implementada.
+
+---
+
+## E-mail
+
+O e-mail existente em `clientes` foi mantido independente do e-mail de `users`.
+
+Mesmo que normalmente sejam iguais quando o Cliente possui login, representam responsabilidades diferentes:
+
+```text
+clientes.email
+→ contato do Cliente
+
+users.email
+→ identidade/autenticação do usuário
+```
+
+Isso evita que o cadastro de relacionamento dependa diretamente da estrutura de autenticação.
+
+Descrição:
+
+> **E-mail de contato do Cliente.**
+
+---
+
+## Confirmação dos canais de contato
+
+Durante a análise de telefone e e-mail, Paulo registrou um requisito para implementação futura:
+
+> "Em ambos os casos é necessário enviar um e-mail confirmando se pertence ou reconhece o cliente."
+
+E posteriormente esclareceu:
+
+> "O comentário é para lembrar da necessidade de confirmação assim como o WhatsApp deverá ter a confirmação por SMS."
+
+Foi registrado como requisito futuro:
+
+```text
+E-mail
+→ deverá possuir processo de confirmação.
+
+Telefone / WhatsApp
+→ deverá possuir processo de confirmação do número.
+```
+
+Não foram adicionados neste momento campos como:
+
+```text
+email_verificado
+telefone_verificado
+```
+
+A decisão sobre onde armazenar esses estados será tomada quando a jornada de confirmação for implementada, considerando inclusive os recursos disponíveis na autenticação.
+
+---
+
+## Cliente ativo
+
+O campo:
+
+```text
+ativo
+```
+
+também teve sua semântica definida.
+
+Paulo propôs:
+
+> "Ativo entendo que é um cliente que faz parte da carteira de clientes da rede."
+
+Portanto, `ativo` não significa:
+
+* possuir login;
+* estar utilizando o aplicativo;
+* possuir atendimento recente.
+
+Significa fazer parte da carteira ativa da Rede.
+
+Descrição:
+
+> **Indica se o Cliente faz parte da carteira ativa de clientes da Rede.**
+
+Inicialmente foi considerada a possibilidade de um novo agendamento reativar automaticamente um Cliente.
+
+Entretanto, Paulo apresentou um cenário relevante:
+
+> "Se tiver algum atrito ou litígio com o dono e ele quer apresentar uma agenda sempre lotada."
+
+Nesse cenário, um Cliente poderia realizar agendamentos sem intenção de comparecimento, comprometendo a agenda do estabelecimento.
+
+Isso alterou a regra inicialmente considerada.
+
+### Regra definida
+
+```text
+ativo = true
+→ Cliente pertence à carteira ativa.
+→ pode realizar novos agendamentos.
+
+ativo = false
+→ cadastro permanece.
+→ histórico permanece.
+→ não pode realizar novos agendamentos.
+→ reativação depende de ação da Rede.
+```
+
+Portanto, um novo agendamento não deverá reativar automaticamente um Cliente inativo.
+
+O modelo continua utilizando apenas `Boolean` no MVP.
+
+Caso futuramente seja necessário distinguir situações como:
+
+```text
+ATIVO
+INATIVO
+BLOQUEADO
+```
+
+o domínio poderá evoluir para um status mais expressivo.
+
+Essa complexidade não foi introduzida antecipadamente.
+
+---
+
+## Auditoria
+
+Foram mantidos os campos:
+
+```text
+criado_em
+criado_por_ref
+atualizado_em
+atualizado_por_ref
+```
+
+Semântica:
+
+```text
+criado_em
+→ Data e hora em que o Cliente foi cadastrado na Rede.
+
+criado_por_ref
+→ Usuário responsável pelo cadastro do Cliente.
+
+atualizado_em
+→ Data e hora da última atualização do cadastro.
+
+atualizado_por_ref
+→ Usuário responsável pela última atualização.
+```
+
+`criado_em` não representa primeiro Atendimento nem criação da conta de autenticação.
+
+Representa especificamente a criação do documento `clientes`.
+
+---
+
+## Rede
+
+O campo:
+
+```text
+rede_ref
+```
+
+foi mantido como vínculo principal do Cliente.
+
+Descrição:
+
+> **Rede à qual pertence o Cliente.**
+
+A unidade onde cada relação operacional ocorreu continuará sendo determinada por `agendamentos` e `atendimentos`.
+
+---
+
+## Estado final
+
+A collection permaneceu estruturalmente simples:
+
+```text
+clientes
+├── user_ref             Doc Ref → users
+├── nome                 String
+├── telefone             String
+├── email                String
+├── ativo                Boolean
+├── criado_em            DateTime
+├── atualizado_em        DateTime
+├── criado_por_ref       Doc Ref → users
+├── atualizado_por_ref   Doc Ref → users
+└── rede_ref             Doc Ref → redes_franquias
+```
+
+### Situação
+
+**`clientes`: HIGIENIZADA.**
+
+A principal decisão arquitetural consolidada foi:
+
+> **Cliente representa o relacionamento da pessoa com a Rede. Atendimento representa o fato operacional e econômico ocorrido em determinado Estabelecimento.**
+
+Isso permite que a Rede reconheça o mesmo Cliente entre suas unidades sem duplicar cadastros e, simultaneamente, preserva a independência dos indicadores operacionais e financeiros de cada estabelecimento.
+
+```
+
+Esse trecho registra não apenas como `clientes` terminou, mas principalmente **por que o Cliente ficou na Rede e não no Estabelecimento**, além do caso que mudou nossa interpretação de `ativo`. 
+```
+
 ## 20/09/2026 — Modelagem do Atendimento como Fato Operacional e sua relação com o Fluxo de Caixa
 
 ### Contexto
