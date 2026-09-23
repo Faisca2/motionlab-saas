@@ -1,4 +1,522 @@
-## 21/09/2026 — Higienização da collection `clientes`
+## 23/09/2026 — Higienização da collection `clientes` e `agendamentos`
+## Higienização de `planos_assinatura` e `assinaturas_saas`
+
+Nesta etapa da higienização do modelo de dados do MotionLab foram analisadas as collections responsáveis pelos planos comerciais oferecidos pela plataforma e pelas assinaturas contratadas pelas Redes.
+
+A análise consolidou uma separação importante:
+
+```text
+planos_assinatura
+→ define o que a MotionLab comercializa
+
+assinaturas_saas
+→ registra o que uma Rede contratou
+```
+
+---
+
+# Collection `planos_assinatura`
+
+A estrutura encontrada era:
+
+```text
+planos_assinatura
+├── nome                String
+├── descricao           String
+├── preco_mensal        Double
+├── gateway_plan_id     String
+├── ativo               Boolean
+├── criado_em           DateTime
+├── atualizado_em       DateTime
+├── criado_por_ref      Doc Ref → users
+└── atualizado_por_ref  Doc Ref → users
+```
+
+## Responsabilidade da collection
+
+Durante a análise ocorreu inicialmente uma dúvida sobre se os planos seriam produtos de assinatura oferecidos pelos próprios estabelecimentos aos seus clientes.
+
+Após esclarecimento, foi reafirmado que esta collection pertence ao domínio comercial da própria MotionLab.
+
+Descrição definida:
+
+> **Define os planos comerciais do SaaS disponibilizados pela MotionLab para contratação pelas Redes.**
+
+Portanto:
+
+```text
+MOTIONLAB
+   │
+   └── planos_assinatura
+          ├── Plano A
+          ├── Plano B
+          └── Plano C
+```
+
+Os documentos representam produtos comerciais da MotionLab e não planos criados pelas barbearias, salões ou demais estabelecimentos.
+
+---
+
+## `nome`
+
+O campo identifica comercialmente o plano.
+
+Descrição definida:
+
+> **Nome utilizado para identificar o plano de assinatura oferecido pela MotionLab aos seus clientes.**
+
+---
+
+## `descricao`
+
+Paulo definiu que o campo deveria explicar as características que diferenciam determinado plano dos demais disponíveis.
+
+Descrição:
+
+> **Descreve as características de um determinado plano de assinatura entre os vários planos disponibilizados pela MotionLab.**
+
+Assim:
+
+```text
+nome
+→ identifica o plano
+
+descricao
+→ apresenta suas características
+```
+
+---
+
+## `preco_mensal`
+
+Paulo definiu:
+
+> "Valor pelo qual é comercializado o SaaS MotionLab."
+
+A descrição foi consolidada como:
+
+> **Valor mensal pelo qual o plano do SaaS MotionLab é comercializado.**
+
+O preço pertence ao plano específico, permitindo que diferentes planos tenham valores distintos.
+
+---
+
+## `gateway_plan_id`
+
+O campo estabelece a correspondência entre o plano comercial cadastrado no MotionLab e sua representação no gateway de pagamento.
+
+```text
+MotionLab
+Plano
+├── nome
+├── preco_mensal
+└── gateway_plan_id
+           │
+           ▼
+Gateway de pagamento
+└── plano/produto recorrente correspondente
+```
+
+Descrição:
+
+> **Identificador do plano correspondente no gateway de pagamento utilizado para cobrança recorrente.**
+
+Esse identificador não representa uma assinatura específica de uma Rede.
+
+Ele identifica o produto/plano no gateway.
+
+---
+
+## `ativo`
+
+Foi definida a seguinte semântica:
+
+> **Indica se o plano está disponível para novas contratações.**
+
+Portanto:
+
+```text
+ativo = true
+→ disponível para novas contratações
+
+ativo = false
+→ indisponível para novas contratações
+```
+
+A desativação de um plano não implica cancelamento das assinaturas existentes que já o referenciam.
+
+Isso permite descontinuar comercialmente um plano sem eliminar seu histórico.
+
+---
+
+## Auditoria
+
+Foi mantido o conjunto padrão:
+
+```text
+criado_em
+atualizado_em
+criado_por_ref
+atualizado_por_ref
+```
+
+Descrições:
+
+```text
+criado_em
+→ Data e hora em que o plano de assinatura foi cadastrado.
+
+criado_por_ref
+→ Usuário responsável pelo cadastro do plano de assinatura.
+
+atualizado_em
+→ Data e hora da última atualização do plano de assinatura.
+
+atualizado_por_ref
+→ Usuário responsável pela última atualização do plano de assinatura.
+```
+
+---
+
+## Recursos e limites dos planos
+
+Antes de concluir a collection foi analisada a possibilidade de estruturar diferenças entre os planos, como:
+
+```text
+quantidade máxima de estabelecimentos
+quantidade máxima de colaboradores
+funcionalidades habilitadas
+outros limites comerciais
+```
+
+Foi decidido não criar esses campos antecipadamente.
+
+A grade comercial de planos ainda não possui regras suficientemente consolidadas para justificar essa estrutura.
+
+Princípio adotado:
+
+> **Os recursos e limites dos planos serão modelados quando existir uma política comercial concreta que exija essas regras.**
+
+Assim, evitamos introduzir complexidade baseada apenas em possibilidades futuras.
+
+### Situação
+
+**`planos_assinatura`: HIGIENIZADA.**
+
+---
+
+# Collection `assinaturas_saas`
+
+Após concluir `planos_assinatura`, foi analisada a collection responsável pelas contratações realizadas pelas Redes.
+
+Estrutura encontrada inicialmente:
+
+```text
+assinaturas_saas
+├── plano_id                 Doc Ref → planos_assinatura
+├── status                   String
+├── proximo_vencimento       DateTime
+├── rede_ref                 Doc Ref → redes_franquias
+├── gateway_subscription_id  String
+├── inicio_em                DateTime
+├── criado_em                DateTime
+├── atualizado_em            DateTime
+├── criado_por_ref           Doc Ref → users
+└── atualizado_por_ref       Doc Ref → users
+```
+
+## Responsabilidade da collection
+
+Foi definida a seguinte descrição:
+
+> **Registra a contratação de um plano do SaaS MotionLab por uma Rede e acompanha a situação dessa assinatura.**
+
+A separação entre as duas collections fica:
+
+```text
+planos_assinatura
+→ catálogo comercial
+→ o que a MotionLab oferece
+
+assinaturas_saas
+→ relação contratada
+→ o que determinada Rede contratou
+```
+
+---
+
+## `plano_id` → `plano_ref`
+
+O campo encontrado chamava-se:
+
+```text
+plano_id
+```
+
+Entretanto, seu tipo era:
+
+```text
+Document Reference → planos_assinatura
+```
+
+Como o padrão adotado no modelo MotionLab utiliza `_ref` para referências de documentos e `_id` para identificadores, foi identificada uma inconsistência de nomenclatura.
+
+Foi realizada a alteração:
+
+```text
+plano_id
+   ↓
+plano_ref
+```
+
+Descrição:
+
+> **Plano de assinatura da MotionLab contratado pela Rede.**
+
+A alteração deixa o campo coerente com outros vínculos do modelo:
+
+```text
+rede_ref
+cliente_ref
+colaborador_ref
+estabelecimento_ref
+plano_ref
+```
+
+---
+
+## `status`
+
+Paulo inicialmente identificou quatro situações necessárias:
+
+```text
+ATIVO
+INATIVO
+EM_ANALISE
+EM_RENOVACAO
+```
+
+Semântica:
+
+```text
+ATIVO
+→ assinatura vigente e disponível para utilização.
+
+INATIVO
+→ assinatura sem vigência/acesso.
+
+EM_ANALISE
+→ contratação ou situação da assinatura aguardando validação.
+
+EM_RENOVACAO
+→ assinatura em processo de renovação.
+```
+
+Descrição:
+
+> **Indica a situação atual da assinatura do SaaS contratada pela Rede.**
+
+Neste momento não foram adicionados estados financeiros como:
+
+```text
+INADIMPLENTE
+PAGAMENTO_PENDENTE
+```
+
+A integração futura com o gateway deverá determinar como eventos financeiros afetam o estado da assinatura.
+
+A decisão evita misturar antecipadamente:
+
+```text
+estado da assinatura
+        ×
+estado da cobrança
+```
+
+---
+
+## `proximo_vencimento`
+
+Descrição:
+
+> **Data prevista para o próximo vencimento da assinatura do SaaS contratada pela Rede.**
+
+O campo representa o próximo vencimento dentro do ciclo comercial da assinatura.
+
+Não representa necessariamente confirmação de pagamento.
+
+---
+
+## `rede_ref`
+
+A assinatura pertence à Rede contratante e não individualmente a uma Matriz ou Filial.
+
+Descrição:
+
+> **Rede contratante do plano de assinatura do SaaS MotionLab.**
+
+Assim:
+
+```text
+Rede
+ └── assinatura_saas
+      └── plano_ref
+```
+
+As unidades pertencentes à Rede são abrangidas conforme as regras comerciais definidas pelo plano.
+
+---
+
+## `gateway_subscription_id`
+
+Foi feita a distinção entre os dois identificadores relacionados ao gateway:
+
+```text
+planos_assinatura.gateway_plan_id
+→ identifica o plano/produto no gateway
+
+assinaturas_saas.gateway_subscription_id
+→ identifica a assinatura específica da Rede no gateway
+```
+
+Descrição:
+
+> **Identificador da assinatura da Rede no gateway de pagamento utilizado para cobrança recorrente.**
+
+Isso permite correlacionar a assinatura mantida pelo MotionLab com a correspondente assinatura criada no provedor de pagamento.
+
+---
+
+## `inicio_em`
+
+Descrição:
+
+> **Data e hora de início da vigência da assinatura do SaaS contratada pela Rede.**
+
+Foi feita a distinção entre:
+
+```text
+inicio_em
+→ início efetivo da vigência
+
+criado_em
+→ momento em que o documento foi cadastrado
+```
+
+Os dois momentos podem ser diferentes.
+
+---
+
+## Auditoria
+
+Foi mantido o conjunto padrão:
+
+```text
+criado_em
+atualizado_em
+criado_por_ref
+atualizado_por_ref
+```
+
+Descrições:
+
+```text
+criado_em
+→ Data e hora em que a assinatura foi cadastrada.
+
+criado_por_ref
+→ Usuário responsável pelo cadastro da assinatura.
+
+atualizado_em
+→ Data e hora da última atualização da assinatura.
+
+atualizado_por_ref
+→ Usuário responsável pela última atualização da assinatura.
+```
+
+---
+
+## Estado final
+
+Após a higienização:
+
+```text
+assinaturas_saas
+├── plano_ref                Doc Ref → planos_assinatura
+├── status                   String
+├── proximo_vencimento       DateTime
+├── rede_ref                 Doc Ref → redes_franquias
+├── gateway_subscription_id  String
+├── inicio_em                DateTime
+├── criado_em                DateTime
+├── atualizado_em            DateTime
+├── criado_por_ref           Doc Ref → users
+└── atualizado_por_ref       Doc Ref → users
+```
+
+A collection consegue responder:
+
+```text
+qual plano?
+→ plano_ref
+
+quem contratou?
+→ rede_ref
+
+quando iniciou?
+→ inicio_em
+
+qual a situação atual?
+→ status
+
+quando ocorre o próximo vencimento?
+→ proximo_vencimento
+
+qual a assinatura correspondente no gateway?
+→ gateway_subscription_id
+
+quem criou/alterou e quando?
+→ campos de auditoria
+```
+
+Questões futuras relacionadas a pagamentos, inadimplência, histórico de cobranças, troca de plano e regras específicas do gateway não foram antecipadas nesta estrutura.
+
+Elas serão modeladas quando suas respectivas jornadas forem definidas.
+
+### Situação
+
+**`assinaturas_saas`: HIGIENIZADA.**
+
+---
+
+## Decisão consolidada
+
+A higienização das duas collections estabeleceu uma fronteira clara:
+
+> **`planos_assinatura` define o produto comercial oferecido pela MotionLab. `assinaturas_saas` registra a contratação desse produto por uma Rede.**
+
+Representação:
+
+```text
+MotionLab
+   │
+   ├── planos_assinatura
+   │       │
+   │       └── plano_ref
+   │              │
+   │              ▼
+   └── assinaturas_saas
+             │
+             └── rede_ref
+                    │
+                    ▼
+                   Rede
+```
+
+Essa separação permite evoluir futuramente catálogo comercial, cobrança e ciclo de assinatura sem misturar a definição do produto com a relação contratual de cada cliente SaaS.
+
+
+## 21/09/2026 — Higienização da collection `clientes` e `agendamentos`
 
 ## Higienização da collection `agendamentos`
 
