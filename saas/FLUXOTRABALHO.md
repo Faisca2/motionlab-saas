@@ -1,4 +1,443 @@
+
+
 ## 23/09/2026 — Higienização da collection `clientes` e `agendamentos`
+
+## Higienização da collection `produtos`
+
+Dando continuidade à higienização do modelo de dados do MotionLab, foi analisada a collection `produtos`.
+
+A estrutura encontrada era:
+
+```text
+produtos
+├── nome                         String
+├── codigo_barras                String
+├── tipo                         String
+├── preco_custo                  Double
+├── preco_venda                  Double
+├── quantidade_atual             Integer
+├── quantidade_minima            Integer
+├── estabelecimento_ref          Doc Ref → estabelecimentos
+├── comissao_padrao_percentual   Double
+├── ativo                        Boolean
+├── criado_em                    DateTime
+├── atualizado_em                DateTime
+├── criado_por_ref               Doc Ref → users
+└── atualizado_por_ref           Doc Ref → users
+```
+
+---
+
+### Responsabilidade da collection
+
+Foi reafirmado que `produtos` deve atender tanto aos produtos destinados à comercialização quanto aos produtos utilizados internamente na operação do Estabelecimento.
+
+Descrição definida:
+
+> **Registra os produtos controlados pelo Estabelecimento, destinados à revenda ou ao consumo operacional.**
+
+Foi mantida a separação entre cadastro, estoque e fato operacional:
+
+```text
+produtos
+→ cadastro do Produto
+→ parâmetros atuais
+→ saldo atual de estoque
+
+movimentacao_estoque
+→ registra os fatos que alteram o estoque
+
+atendimentos
+→ registra os produtos efetivamente vendidos
+→ preserva preço e comissão efetivamente aplicados
+```
+
+---
+
+## `nome`
+
+Descrição:
+
+> **Nome utilizado para identificar o Produto no Estabelecimento.**
+
+O campo identifica produtos independentemente de sua finalidade.
+
+Exemplos:
+
+```text
+Pomada Modeladora 100g
+→ produto de revenda
+
+Lâmina descartável
+→ produto de consumo operacional
+```
+
+A finalidade não é determinada pelo nome, mas pelo campo `tipo`.
+
+---
+
+## `codigo_barras`
+
+Descrição:
+
+> **Código de barras utilizado para identificar o Produto.**
+
+O campo permanece como `String`, pois código de barras é um identificador e não um valor numérico destinado a cálculos.
+
+Isso também preserva eventuais zeros à esquerda.
+
+O campo poderá permanecer vazio quando determinado Produto não possuir código de barras.
+
+---
+
+## `tipo`
+
+Paulo definiu que o campo deve distinguir:
+
+> "Produto para uso e produto para venda."
+
+Foram mantidos os valores:
+
+```text
+REVENDA
+CONSUMO_OPERACIONAL
+```
+
+Semântica:
+
+```text
+REVENDA
+→ Produto adquirido para comercialização ao Cliente.
+
+CONSUMO_OPERACIONAL
+→ Produto utilizado pelo próprio Estabelecimento
+  na execução de suas atividades.
+```
+
+Descrição:
+
+> **Define se o Produto é destinado à revenda ou ao consumo operacional do Estabelecimento.**
+
+A distinção é importante porque ambos podem possuir estoque, mas suas saídas representam fatos diferentes:
+
+```text
+Produto de revenda
+→ pode gerar SAIDA_VENDA
+
+Produto de consumo operacional
+→ pode gerar SAIDA_CONSUMO
+```
+
+---
+
+## `preco_custo`
+
+Descrição:
+
+> **Valor de custo utilizado como referência para aquisição do Produto pelo Estabelecimento.**
+
+Foi utilizada propositalmente a expressão **"como referência"**.
+
+O preço de aquisição pode variar entre diferentes compras.
+
+Exemplo:
+
+```text
+produtos.preco_custo
+→ R$ 20,00
+
+nova aquisição
+→ R$ 22,50
+```
+
+Assim, `produtos.preco_custo` representa o custo de referência atual do cadastro.
+
+O valor efetivamente praticado em determinada aquisição pertence ao fato que representar aquela operação.
+
+Alterações futuras no custo de referência não devem modificar fatos históricos.
+
+---
+
+## `preco_venda`
+
+Foi adotado o mesmo princípio utilizado no custo.
+
+Descrição:
+
+> **Valor de venda utilizado como referência para comercialização do Produto pelo Estabelecimento.**
+
+Exemplo:
+
+```text
+preco_venda
+→ R$ 50,00
+
+preço efetivamente aplicado em determinado Atendimento
+→ R$ 45,00
+```
+
+O preço cadastrado não deve substituir o valor efetivamente praticado no fato operacional.
+
+No Atendimento, o snapshot do item preserva:
+
+```text
+preco_tabela
+preco_aplicado
+```
+
+Portanto:
+
+> **Configuração determina a referência; o fato preserva aquilo que efetivamente ocorreu.**
+
+Uma alteração posterior em `produtos.preco_venda` não deve alterar o histórico dos Atendimentos já realizados.
+
+---
+
+## `quantidade_atual`
+
+Descrição:
+
+> **Quantidade atualmente disponível do Produto no estoque do Estabelecimento.**
+
+Foi feita uma distinção importante:
+
+```text
+produtos.quantidade_atual
+→ saldo atual
+
+movimentacao_estoque
+→ fatos responsáveis pelas alterações desse saldo
+```
+
+Exemplo:
+
+```text
+quantidade_atual = 20
+
+SAIDA_VENDA = 2
+→ quantidade_atual = 18
+
+ENTRADA_COMPRA = 10
+→ quantidade_atual = 28
+```
+
+Nas operações normais, `quantidade_atual` não deverá representar uma movimentação digitada isoladamente.
+
+Sua alteração deverá ocorrer como consequência dos fatos registrados no controle de estoque.
+
+Isso mantém a possibilidade de rastrear por que determinado saldo foi atingido.
+
+---
+
+## `quantidade_minima`
+
+Descrição:
+
+> **Quantidade mínima desejada do Produto em estoque, utilizada como referência para necessidade de reposição.**
+
+Esse campo é um parâmetro de controle e não uma movimentação.
+
+Exemplo:
+
+```text
+quantidade_atual  = 4
+quantidade_minima = 5
+
+→ Produto atingiu nível de reposição
+```
+
+O MotionLab poderá futuramente utilizar essa informação para alertas ou indicadores de necessidade de reposição.
+
+A regra é aplicável tanto a produtos de revenda quanto de consumo operacional.
+
+---
+
+## `estabelecimento_ref`
+
+Descrição:
+
+> **Estabelecimento ao qual pertence o cadastro e o controle de estoque do Produto.**
+
+O controle do Produto permanece no nível do Estabelecimento.
+
+Mesmo dentro da mesma Rede, unidades diferentes podem possuir:
+
+```text
+estoques diferentes
+custos diferentes
+preços de venda diferentes
+quantidades mínimas diferentes
+```
+
+Portanto:
+
+```text
+Rede
+├── Matriz
+│    └── estoque próprio
+│
+└── Filial
+     └── estoque próprio
+```
+
+Não foi transferido o cadastro de estoque para o nível da Rede.
+
+---
+
+## `comissao_padrao_percentual`
+
+Descrição:
+
+> **Percentual padrão de comissão aplicado ao Colaborador pela venda do Produto.**
+
+Exemplo:
+
+```text
+preco_aplicado = R$ 50,00
+comissao_padrao_percentual = 10%
+
+comissão prevista = R$ 5,00
+```
+
+Foi mantida a decisão já tomada anteriormente para o MVP:
+
+> **Produtos possuem somente comissão padrão, sem configuração de exceção individual por Colaborador.**
+
+Não será criada antecipadamente uma estrutura equivalente a `colaborador_produto_config`.
+
+Quando uma venda efetivamente ocorrer, o percentual aplicado deverá ser preservado no snapshot do item do Atendimento.
+
+Assim:
+
+```text
+produtos.comissao_padrao_percentual
+→ configuração atual
+
+atendimentos.itens_produto.comissao_aplicada_percentual
+→ regra efetivamente aplicada no fato
+```
+
+Alterações futuras na comissão padrão não modificam vendas históricas.
+
+---
+
+## `ativo`
+
+Descrição:
+
+> **Indica se o Produto está ativo para utilização nas operações do Estabelecimento.**
+
+Semântica:
+
+```text
+ativo = true
+→ Produto disponível para novas operações.
+
+ativo = false
+→ Produto não deve participar de novas operações.
+→ cadastro permanece.
+→ histórico permanece.
+```
+
+Um Produto que deixou de ser comercializado ou utilizado não deve necessariamente ser excluído.
+
+Ele poderá continuar referenciado por:
+
+```text
+Atendimentos anteriores
+Movimentações de estoque
+Outros fatos históricos
+```
+
+A inativação preserva essas relações.
+
+---
+
+## Auditoria
+
+Foi mantido o conjunto padrão de auditoria:
+
+```text
+criado_em
+atualizado_em
+criado_por_ref
+atualizado_por_ref
+```
+
+Descrições:
+
+```text
+criado_em
+→ Data e hora em que o Produto foi cadastrado.
+
+criado_por_ref
+→ Usuário responsável pelo cadastro do Produto.
+
+atualizado_em
+→ Data e hora da última atualização do Produto.
+
+atualizado_por_ref
+→ Usuário responsável pela última atualização do Produto.
+```
+
+---
+
+## Estado final
+
+A estrutura permaneceu:
+
+```text
+produtos
+├── nome                         String
+├── codigo_barras                String
+├── tipo                         String
+├── preco_custo                  Double
+├── preco_venda                  Double
+├── quantidade_atual             Integer
+├── quantidade_minima            Integer
+├── estabelecimento_ref          Doc Ref → estabelecimentos
+├── comissao_padrao_percentual   Double
+├── ativo                        Boolean
+├── criado_em                    DateTime
+├── atualizado_em                DateTime
+├── criado_por_ref               Doc Ref → users
+└── atualizado_por_ref           Doc Ref → users
+```
+
+Nenhum novo campo foi considerado necessário nesta etapa.
+
+### Situação
+
+**`produtos`: HIGIENIZADA.**
+
+---
+
+## Decisão consolidada
+
+A revisão consolidou três responsabilidades diferentes:
+
+```text
+PRODUTO
+→ cadastro e parâmetros atuais
+→ posição atual do estoque
+
+MOVIMENTAÇÃO DE ESTOQUE
+→ fato que explica a alteração do estoque
+
+ATENDIMENTO
+→ fato operacional que registra aquilo que
+  efetivamente foi vendido ao Cliente
+```
+
+Também foi mantido o princípio já utilizado em outras partes do modelo:
+
+> **Configurações atuais não devem alterar fatos históricos.**
+
+Preço de venda e comissão existentes no cadastro servem como referência para novas operações.
+
+Quando a operação ocorre, os valores efetivamente aplicados são preservados no fato correspondente.
+
+
 ## Higienização de `planos_assinatura` e `assinaturas_saas`
 
 Nesta etapa da higienização do modelo de dados do MotionLab foram analisadas as collections responsáveis pelos planos comerciais oferecidos pela plataforma e pelas assinaturas contratadas pelas Redes.
