@@ -1,6 +1,163 @@
 
 
-## 23/09/2026 — Higienização da collection `clientes` e `agendamentos`
+## 2026-09-23 — Higienização da collection `movimentacao_estoque`
+
+### Objetivo
+
+Revisar a responsabilidade e os campos da collection `movimentacao_estoque`, mantendo a separação entre o cadastro atual do Produto e os fatos que provocam alterações em seu estoque.
+
+### Estrutura revisada
+
+A collection passou a representar os fatos de entrada e saída de Produtos no estoque de um Estabelecimento.
+
+Campos revisados:
+
+- `tipo_movimento` — String
+- `quantidade` — Integer
+- `movimentado_em` — DateTime
+- `estabelecimento_ref` — Document Reference → `estabelecimentos`
+- `produto_ref` — Document Reference → `produtos`
+- `atendimento_ref` — Document Reference → `atendimentos` (opcional)
+- `observacao` — String (opcional)
+- `criado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_em` — DateTime
+- `atualizado_por_ref` — Document Reference → `users`
+
+### Tipos de movimentação
+
+Foram definidos inicialmente os seguintes valores para `tipo_movimento`:
+
+- `ENTRADA_COMPRA`
+- `SAIDA_VENDA`
+- `SAIDA_CONSUMO`
+- `AJUSTE_ENTRADA`
+- `AJUSTE_SAIDA`
+
+A `quantidade` é registrada sempre como valor positivo.
+
+A direção da alteração do estoque é determinada pelo `tipo_movimento`, evitando utilizar quantidades negativas para representar saídas.
+
+Exemplo:
+
+`ENTRADA_COMPRA + quantidade 10` aumenta o estoque em 10 unidades.
+
+`SAIDA_VENDA + quantidade 2` reduz o estoque em 2 unidades.
+
+### Data do fato x data do registro
+
+Foi mantida a separação entre:
+
+- `movimentado_em`: momento em que a movimentação de estoque efetivamente ocorreu;
+- `criado_em`: momento em que o registro foi criado no MotionLab.
+
+Isso preserva corretamente o momento do fato gerador, mesmo quando seu registro no sistema ocorrer posteriormente.
+
+### Rastreabilidade com Atendimento
+
+Durante a revisão foi identificado que uma `SAIDA_VENDA` precisava permitir rastrear qual fato operacional provocou a movimentação.
+
+Foi acrescentado:
+
+`atendimento_ref` — Document Reference → `atendimentos`
+
+Descrição:
+
+> Atendimento que originou a movimentação de estoque, quando aplicável.
+
+O campo é opcional porque nem toda movimentação de estoque decorre de um Atendimento.
+
+A relação fica:
+
+Atendimento  
+→ venda do Produto  
+→ `SAIDA_VENDA`  
+→ movimentação do estoque.
+
+### Justificativa de ajustes
+
+Também foi identificado que movimentações como `AJUSTE_ENTRADA` e `AJUSTE_SAIDA` precisavam permitir registrar o contexto da correção.
+
+Foi acrescentado:
+
+`observacao` — String
+
+Descrição:
+
+> Informação complementar sobre a movimentação de estoque, utilizada quando necessário para registrar sua justificativa ou contexto.
+
+Exemplo:
+
+O sistema informa 10 unidades, mas a conferência física encontra 8.
+
+É registrada uma `AJUSTE_SAIDA` de 2 unidades, podendo a `observacao` registrar a justificativa da diferença encontrada.
+
+### Discussão sobre custo de aquisição
+
+Ao analisar `ENTRADA_COMPRA`, surgiu a necessidade de preservar o custo efetivamente praticado na aquisição.
+
+O campo `produtos.preco_custo` representa apenas o custo atual utilizado como referência. Portanto, utilizar esse valor para reconstruir uma aquisição histórica seria incorreto caso o preço do Produto fosse alterado posteriormente.
+
+Durante essa discussão foi feita a seguinte observação:
+
+> "Já tinha percebido a necessidade, mas a exemplo de atendimento teríamos compras ou recebimento de produtos."
+
+A observação levou à percepção de que o problema não deveria ser resolvido simplesmente adicionando o preço de compra à `movimentacao_estoque`.
+
+Assim como o `atendimento` representa o fato operacional e produz uma movimentação de estoque, a aquisição de Produtos deverá possuir seu próprio fato de negócio.
+
+Conceitualmente:
+
+Atendimento  
+→ fato operacional de venda/prestação  
+→ movimentação de estoque.
+
+Compra / Recebimento  
+→ fato operacional de aquisição/recebimento  
+→ movimentação de estoque.
+
+### Compra não é necessariamente Recebimento
+
+Foi identificado ainda que Compra e Recebimento podem representar momentos diferentes.
+
+Exemplo:
+
+- são compradas 100 unidades;
+- posteriormente são recebidas 60 unidades;
+- em outro momento são recebidas as 40 unidades restantes.
+
+Nesse cenário, o estoque não deve aumentar simplesmente porque ocorreu a Compra. A entrada física deve acompanhar o Recebimento efetivo dos Produtos.
+
+Isso indica a necessidade futura de estudar separadamente os conceitos de:
+
+- Compra;
+- Recebimento;
+- itens adquiridos;
+- custo unitário efetivamente praticado;
+- fornecedor;
+- documento da aquisição;
+- efeitos financeiros;
+- efeitos no estoque.
+
+### Decisão
+
+Não criar neste momento campos de custo de aquisição diretamente em `movimentacao_estoque`.
+
+Também não criar ainda collections de `compras` ou `recebimentos`, pois a jornada desse domínio ainda precisa ser modelada.
+
+A necessidade fica registrada para evolução posterior do modelo.
+
+O valor `ENTRADA_COMPRA` também deverá ser reavaliado quando essa jornada for desenhada, pois a entrada efetiva de estoque pode estar semanticamente mais relacionada ao Recebimento do que à Compra.
+
+### Princípio arquitetural reforçado
+
+`produtos` mantém o cadastro, os parâmetros atuais e o saldo atual.
+
+`movimentacao_estoque` registra os fatos que alteram esse saldo.
+
+O processo de negócio que origina uma movimentação deve permanecer em seu próprio domínio e produzir a movimentação de estoque como consequência.
+
+Esse princípio é semelhante ao já adotado entre `atendimentos` e `fluxo_caixa`: não concentrar no registro do efeito as informações que pertencem ao fato de negócio que o originou.
 
 ## Higienização da collection `produtos`
 
