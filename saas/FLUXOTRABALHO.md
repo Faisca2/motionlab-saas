@@ -1,5 +1,361 @@
 
-## 2026-09-24 — Higienização da collection `colaboradores`
+## 2026-09-24 — Higienização da collection `categorias_financeiras`
+
+### Objetivo
+
+Revisar a responsabilidade, os campos e as regras de integridade da collection `categorias_financeiras`, consolidando sua função como catálogo de classificação das movimentações registradas em `fluxo_caixa`.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade:
+
+> Registra as categorias utilizadas para identificar a motivação econômica ou operacional que originou uma entrada ou saída financeira.
+
+Conceitualmente:
+
+`fluxo_caixa`
+↓
+`categoria_ref`
+↓
+`categorias_financeiras`
+↓
+identifica por que a movimentação ocorreu.
+
+A Categoria Financeira representa configuração/classificação.
+
+O `fluxo_caixa` representa o fato financeiro efetivamente ocorrido.
+
+---
+
+### Estrutura revisada
+
+A collection permanece com os seguintes campos:
+
+- `nome` — String
+- `tipo` — String
+- `origem` — String
+- `ativo` — Boolean
+- `estabelecimento_ref` — Document Reference → `estabelecimentos`
+- `criado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_em` — DateTime
+- `atualizado_por_ref` — Document Reference → `users`
+- `descricao_padrao` — String
+
+Nenhum novo campo foi considerado necessário nesta etapa.
+
+---
+
+### `nome`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Nome utilizado para identificar a Categoria Financeira.
+
+Conceito:
+
+Representa o nome apresentado ao usuário para identificar a motivação econômica ou operacional da movimentação.
+
+Exemplos conceituais:
+
+- aluguel;
+- energia elétrica;
+- recebimento de atendimento;
+- venda de produto;
+- outras despesas operacionais.
+
+---
+
+### `tipo`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Define a direção financeira das movimentações às quais a Categoria pode ser aplicada.
+
+Domínio atual:
+
+- `ENTRADA`
+- `SAIDA`
+
+Foi definida a regra de integridade:
+
+`categorias_financeiras.tipo`
+=
+`fluxo_caixa.tipo`
+
+Uma Categoria do tipo `ENTRADA` somente pode classificar movimentações de entrada.
+
+Uma Categoria do tipo `SAIDA` somente pode classificar movimentações de saída.
+
+O campo permanece como `String` e seus valores válidos serão controlados pela aplicação.
+
+---
+
+### `origem`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Identifica se a Categoria Financeira foi definida pelo MotionLab ou criada pelo Estabelecimento.
+
+Domínio atual:
+
+- `MOTIONLAB`
+- `ESTABELECIMENTO`
+
+Conceito:
+
+O MotionLab poderá fornecer um conjunto de Categorias Financeiras padrão.
+
+Os Estabelecimentos também poderão possuir categorias específicas para necessidades próprias.
+
+Essa separação permite disponibilizar uma base inicial sem impedir personalização pelo cliente.
+
+---
+
+### `estabelecimento_ref`
+
+Tipo:
+
+`Document Reference → estabelecimentos`
+
+Descrição atribuída ao campo:
+
+> Estabelecimento ao qual pertence a Categoria Financeira quando sua origem for ESTABELECIMENTO.
+
+Foi definida a regra:
+
+`origem = MOTIONLAB`
+→ `estabelecimento_ref` vazio.
+
+`origem = ESTABELECIMENTO`
+→ `estabelecimento_ref` preenchido.
+
+Assim, uma categoria criada por determinado Estabelecimento pertence àquele contexto e não deve ser automaticamente disponibilizada para outras unidades.
+
+---
+
+### `ativo`
+
+Tipo:
+
+`Boolean`
+
+Descrição atribuída ao campo:
+
+> Indica se a Categoria Financeira está disponível para utilização em novas movimentações.
+
+Conceito:
+
+O campo implementa a desativação lógica da Categoria Financeira.
+
+Quando:
+
+`ativo = true`
+
+a Categoria pode ser utilizada para classificar novas movimentações.
+
+Quando:
+
+`ativo = false`
+
+a Categoria deixa de estar disponível para novas movimentações, porém permanece armazenada para preservar os registros históricos que já a referenciam.
+
+Portanto:
+
+desativar Categoria
+≠
+excluir Categoria.
+
+Essa decisão mantém a integridade histórica de `fluxo_caixa`.
+
+---
+
+### `descricao_padrao`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Descrição sugerida para movimentações financeiras classificadas por esta Categoria.
+
+Conceito:
+
+`descricao_padrao` funciona como modelo ou sugestão para a descrição da movimentação.
+
+Conceitualmente:
+
+`categorias_financeiras.descricao_padrao`
+↓ cópia no momento da criação
+`fluxo_caixa.descricao`
+
+Depois da criação da movimentação, `fluxo_caixa.descricao` passa a fazer parte do fato financeiro.
+
+Uma alteração posterior em `descricao_padrao` não deve modificar movimentações financeiras históricas.
+
+Isso segue o princípio já adotado em outros domínios:
+
+Configuração
+→ determina/sugere valores para um novo fato.
+
+Fato
+→ preserva os valores efetivamente utilizados naquele momento.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que a Categoria Financeira foi cadastrada.
+
+Conceito:
+
+Registra o momento da criação da Categoria.
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pelo cadastro da Categoria Financeira.
+
+Conceito:
+
+Identifica quem realizou a criação da Categoria.
+
+---
+
+### `atualizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora da última atualização da Categoria Financeira.
+
+Conceito:
+
+Mantém a auditoria temporal das alterações realizadas na configuração.
+
+---
+
+### `atualizado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela última atualização da Categoria Financeira.
+
+Conceito:
+
+Permite identificar quem realizou a alteração mais recente.
+
+---
+
+### Regras de integridade
+
+Durante a higienização foram consolidadas as seguintes regras:
+
+#### Categoria padrão MotionLab
+
+`origem = MOTIONLAB`
+
+→ `estabelecimento_ref` vazio.
+
+#### Categoria própria da unidade
+
+`origem = ESTABELECIMENTO`
+
+→ `estabelecimento_ref` obrigatório.
+
+#### Compatibilidade financeira
+
+`categoria.tipo = ENTRADA`
+
+→ somente pode classificar `fluxo_caixa.tipo = ENTRADA`.
+
+`categoria.tipo = SAIDA`
+
+→ somente pode classificar `fluxo_caixa.tipo = SAIDA`.
+
+Essas regras deverão ser garantidas pela aplicação.
+
+---
+
+### Separação de responsabilidades
+
+Foi reforçada a seguinte divisão:
+
+`categorias_financeiras`
+→ configuração e classificação.
+
+`fluxo_caixa`
+→ fato financeiro ocorrido.
+
+A Categoria responde:
+
+> Por que esta movimentação financeira ocorreu?
+
+O `fluxo_caixa` registra:
+
+> Qual movimentação efetivamente ocorreu?
+
+Essa separação impede que alterações futuras na configuração modifiquem a interpretação histórica dos fatos financeiros.
+
+---
+
+### Decisão final
+
+A collection `categorias_financeiras` foi considerada higienizada para o MVP.
+
+Nenhum novo campo foi necessário.
+
+Foram consolidados:
+
+- domínio de `tipo`: `ENTRADA | SAIDA`;
+- domínio de `origem`: `MOTIONLAB | ESTABELECIMENTO`;
+- relação entre `origem` e `estabelecimento_ref`;
+- compatibilidade entre `categorias_financeiras.tipo` e `fluxo_caixa.tipo`;
+- desativação lógica por meio de `ativo`;
+- uso de `descricao_padrao` como sugestão copiada para o fato financeiro.
+
+Estrutura conceitual final:
+
+Categoria Financeira
+→ classifica a motivação.
+
+Fluxo de Caixa
+→ registra o fato financeiro.
+
+A configuração pode evoluir sem alterar os fatos históricos anteriormente registrados.
 
 ### Objetivo
 
