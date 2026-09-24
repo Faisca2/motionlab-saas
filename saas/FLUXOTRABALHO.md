@@ -1,6 +1,279 @@
 
-## 2026-09-24 — Higienização da collection `convite`
+## 2026-09-24 — Higienização da collection `redes_franquias`
 
+### Objetivo
+
+Revisar a responsabilidade, os campos e os limites arquiteturais da collection `redes_franquias`, consolidando seu papel como representação do cliente/tenant principal do SaaS MotionLab.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade:
+
+> Registra as Redes clientes do SaaS MotionLab, responsáveis por agrupar e administrar seus Estabelecimentos.
+
+A Rede representa o tenant principal do cliente dentro do MotionLab.
+
+Conceitualmente:
+
+MotionLab
+↓
+Rede
+├── Matriz
+├── Filial
+└── Filial
+
+A Rede representa a organização cliente do SaaS.
+
+Os Estabelecimentos representam suas unidades operacionais.
+
+---
+
+### Estrutura revisada
+
+A collection permanece com os seguintes campos:
+
+- `nome_da_rede` — String
+- `nicho_principal` — String
+- `criado_em` — DateTime
+- `dono_ref` — Document Reference → `users`
+- `atualizado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_por_ref` — Document Reference → `users`
+
+Nenhum novo campo foi considerado necessário nesta etapa.
+
+---
+
+### `nome_da_rede`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Nome utilizado para identificar a Rede cliente no MotionLab.
+
+Conceito:
+
+Representa o nome pelo qual a Rede será identificada e apresentada dentro do sistema.
+
+Não representa obrigatoriamente uma razão social ou denominação jurídica.
+
+---
+
+### `nicho_principal`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Nicho de atuação principal da Rede.
+
+Conceito:
+
+Identifica o segmento predominante de atuação da Rede.
+
+Exemplos conceituais:
+
+- barbearia;
+- salão de beleza;
+- podologia;
+- academia.
+
+O campo permanece como `String`.
+
+Caso futuramente exista necessidade concreta de padronização dos nichos suportados pelo MotionLab, o domínio poderá ser controlado pelo código da aplicação sem necessidade imediata de criação de uma collection específica.
+
+---
+
+### `dono_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela propriedade e administração principal da Rede no MotionLab.
+
+Conceito:
+
+Representa o usuário proprietário ou responsável principal pela Rede dentro do MotionLab.
+
+Foi reforçada a diferença entre `dono_ref` e `criado_por_ref`.
+
+Conceitualmente:
+
+`dono_ref`
+→ quem responde pela Rede.
+
+`criado_por_ref`
+→ quem realizou o cadastro da Rede no sistema.
+
+No fluxo atual esses usuários podem coincidir, mas representam conceitos distintos.
+
+Essa separação também permite que futuramente a responsabilidade principal pela Rede seja transferida sem alterar a informação histórica sobre quem realizou seu cadastro.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que a Rede foi cadastrada no MotionLab.
+
+Conceito:
+
+Registra o momento de criação do cadastro da Rede.
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pelo cadastro da Rede no MotionLab.
+
+Conceito:
+
+Registra quem efetivamente realizou a criação do cadastro.
+
+Não deve ser interpretado automaticamente como proprietário permanente da Rede, pois essa responsabilidade pertence a `dono_ref`.
+
+---
+
+### `atualizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora da última atualização dos dados da Rede.
+
+Conceito:
+
+Mantém a auditoria temporal das alterações realizadas no cadastro da Rede.
+
+---
+
+### `atualizado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela última atualização dos dados da Rede.
+
+Conceito:
+
+Permite identificar quem realizou a alteração mais recente no cadastro.
+
+---
+
+### Separação entre Rede e Estabelecimentos
+
+Foi reforçada a seguinte responsabilidade:
+
+`redes_franquias`
+→ representa a organização cliente do MotionLab.
+
+`estabelecimentos`
+→ representa as unidades operacionais pertencentes à Rede.
+
+Assim, informações específicas da Matriz ou das Filiais não devem ser incorporadas ao documento da Rede.
+
+A relação conceitual permanece:
+
+Rede
+↓
+Estabelecimentos
+├── MATRIZ
+├── FILIAL
+└── FILIAL
+
+---
+
+### Separação entre Rede e assinatura do SaaS
+
+Durante a revisão também foi confirmada a separação entre a identidade da Rede e sua relação comercial com o MotionLab.
+
+Informações como plano contratado e identificador da assinatura no gateway não pertencem mais a `redes_franquias`.
+
+A responsabilidade foi separada da seguinte forma:
+
+`redes_franquias`
+→ identifica quem é o cliente/tenant.
+
+`assinaturas_saas`
+→ registra o que a Rede contratou.
+
+`planos_assinatura`
+→ define os planos comercializados pelo MotionLab.
+
+Conceitualmente:
+
+Rede
+↓
+Assinatura SaaS
+↓
+Plano de assinatura
+
+Com isso, campos anteriormente considerados no cadastro da Rede, como informações do plano ou da assinatura no gateway, permanecem fora desta collection.
+
+---
+
+### Decisão sobre novos campos
+
+Foi analisada a necessidade de ampliar a estrutura da collection.
+
+Para o MVP, não foi identificada necessidade de adicionar:
+
+- informações da assinatura;
+- identificadores de assinatura do gateway;
+- dados específicos dos Estabelecimentos;
+- informações comerciais adicionais;
+- novos campos de controle de estado.
+
+A estrutura atual foi considerada suficiente para representar a Rede dentro do domínio atual do MotionLab.
+
+---
+
+### Decisão final
+
+A collection `redes_franquias` foi considerada higienizada para o MVP.
+
+Sua responsabilidade fica limitada à identidade, propriedade e auditoria da organização cliente do MotionLab.
+
+A separação arquitetural consolidada é:
+
+`redes_franquias`
+→ identidade e propriedade do tenant.
+
+`estabelecimentos`
+→ unidades operacionais da Rede.
+
+`assinaturas_saas`
+→ relação comercial da Rede com o MotionLab.
+
+`users`
+→ usuários e acessos relacionados à plataforma.
+
+Essa separação evita concentrar no documento da Rede responsabilidades pertencentes a outros domínios e mantém o modelo preparado para evolução sem aumentar desnecessariamente a complexidade do MVP.
 ### Objetivo
 
 Revisar a responsabilidade, os campos e as regras da collection `convite`, mantendo o modelo simples para o MVP e garantindo a rastreabilidade do processo de ingresso de usuários no MotionLab.
