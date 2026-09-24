@@ -1,6 +1,672 @@
 
-## 2026-09-24 — Higienização da collection `categorias_financeiras`
+## 2026-09-24 — Higienização da collection `atendimentos`
 
+### Objetivo
+
+Revisar a responsabilidade, os campos, os fatos temporais e as regras da collection `atendimentos`, consolidando-a como registro do fato operacional efetivamente ocorrido no Estabelecimento.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade:
+
+> Registra o fato operacional do Atendimento efetivamente realizado ou em realização, preservando os Serviços, Produtos, valores e regras aplicados naquele momento.
+
+Foi reafirmada a separação:
+
+`agendamentos`
+→ registra aquilo que está previsto para acontecer.
+
+`atendimentos`
+→ registra aquilo que efetivamente aconteceu.
+
+Essa separação permite que a execução real seja diferente da previsão sem alterar indevidamente o histórico do Agendamento.
+
+---
+
+### Estrutura revisada
+
+Após a higienização, a collection possui 19 campos:
+
+- `rede_ref` — Document Reference → `redes_franquias`
+- `estabelecimento_ref` — Document Reference → `estabelecimentos`
+- `cliente_ref` — Document Reference → `clientes`
+- `colaborador_ref` — Document Reference → `colaboradores`
+- `agendamento_ref` — Document Reference → `agendamentos`
+- `itens_servico` — List<Data `ItemServicoAtendimentoStruct`>
+- `itens_produto` — List<Data `ItemProdutoAtendimentoStruct`>
+- `valor_servicos` — Double
+- `valor_produtos` — Double
+- `desconto_itens` — Double
+- `abatimento` — Double
+- `valor_total` — Double
+- `realizado_em` — DateTime
+- `status` — String
+- `criado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_em` — DateTime
+- `atualizado_por_ref` — Document Reference → `users`
+- `iniciado_em` — DateTime
+
+---
+
+### `rede_ref`
+
+Tipo:
+
+`Document Reference → redes_franquias`
+
+Descrição atribuída ao campo:
+
+> Rede à qual pertence o Atendimento.
+
+Conceito:
+
+Mantém a identificação direta do tenant ao qual pertence o fato operacional.
+
+Mesmo sendo possível alcançar a Rede por meio do Estabelecimento, a referência direta facilita isolamento, consultas e controle dos dados.
+
+---
+
+### `estabelecimento_ref`
+
+Tipo:
+
+`Document Reference → estabelecimentos`
+
+Descrição atribuída ao campo:
+
+> Estabelecimento onde ocorreu o Atendimento.
+
+Conceito:
+
+Identifica a unidade operacional na qual ocorreu o fato.
+
+É o Estabelecimento que recebe a atribuição operacional e econômica daquele Atendimento.
+
+---
+
+### `cliente_ref`
+
+Tipo:
+
+`Document Reference → clientes`
+
+Descrição atribuída ao campo:
+
+> Cliente para o qual o Atendimento foi realizado.
+
+Conceito:
+
+Identifica o Cliente relacionado ao fato operacional.
+
+O Cliente pertence à Rede, enquanto o Atendimento determina em qual Estabelecimento ocorreu a relação.
+
+---
+
+### `colaborador_ref`
+
+Tipo:
+
+`Document Reference → colaboradores`
+
+Descrição atribuída ao campo:
+
+> Colaborador responsável pela realização do Atendimento.
+
+Conceito:
+
+Representa o profissional que efetivamente executou o Atendimento.
+
+Não representa necessariamente o Colaborador originalmente previsto no Agendamento.
+
+---
+
+### `agendamento_ref`
+
+Tipo:
+
+`Document Reference → agendamentos`
+
+Descrição atribuída ao campo:
+
+> Agendamento que originou o Atendimento, quando aplicável.
+
+Conceito:
+
+O campo é opcional.
+
+Atendimento originado de Agendamento:
+
+`agendamento_ref` preenchido.
+
+Atendimento realizado sem Agendamento prévio:
+
+`agendamento_ref` vazio.
+
+Isso permite representar encaixes e atendimentos espontâneos sem criar um Agendamento artificial.
+
+---
+
+### Validação do cenário de troca de Colaborador
+
+Durante a revisão foi analisado o seguinte cenário:
+
+Um Cliente possui um Agendamento com o Colaborador A.
+
+Ao chegar ao Estabelecimento, o Colaborador A ainda está finalizando outro Atendimento.
+
+O Cliente pergunta se pode ser atendido pelo Colaborador B.
+
+Foi confirmado que o modelo atual já representa corretamente essa situação sem necessidade de novos campos.
+
+O Agendamento preserva:
+
+`agendamentos.colaborador_ref = Colaborador A`
+
+O Atendimento registra:
+
+`atendimentos.colaborador_ref = Colaborador B`
+
+E:
+
+`atendimentos.agendamento_ref`
+→ referencia o Agendamento original.
+
+Portanto:
+
+Agendamento
+→ preserva quem estava previsto para atender.
+
+Atendimento
+→ preserva quem efetivamente realizou.
+
+Essa diferença também permite reconstruir futuramente ocorrências de troca de profissional sem duplicar informações.
+
+Comissão, produtividade e realização pertencem ao Colaborador que efetivamente executou o Atendimento.
+
+---
+
+### `itens_servico`
+
+Tipo:
+
+`List<Data ItemServicoAtendimentoStruct>`
+
+Descrição atribuída ao campo:
+
+> Serviços efetivamente realizados no Atendimento, preservando os valores e regras aplicados no momento da realização.
+
+Conceito:
+
+Os itens funcionam como snapshot histórico dos Serviços efetivamente realizados.
+
+O Atendimento não deve depender dos valores atuais existentes na collection `servicos` para reconstruir um fato passado.
+
+O `ItemServicoAtendimentoStruct` contém:
+
+- `servico_ref`
+- `nome`
+- `preco_tabela`
+- `preco_aplicado`
+- `duracao_prevista`
+- `comissao_padrao_percentual`
+- `comissao_aplicada_percentual`
+- `desconto_valor`
+
+Assim, alterações futuras no cadastro ou preço do Serviço não modificam Atendimentos já realizados.
+
+---
+
+### `itens_produto`
+
+Tipo:
+
+`List<Data ItemProdutoAtendimentoStruct>`
+
+Descrição atribuída ao campo:
+
+> Produtos efetivamente vendidos no Atendimento, preservando os valores e regras aplicados no momento da venda.
+
+Conceito:
+
+Funciona como snapshot histórico dos Produtos comercializados durante o Atendimento.
+
+O `ItemProdutoAtendimentoStruct` contém:
+
+- `produto_ref`
+- `nome`
+- `codigo_barras`
+- `tipo`
+- `preco_tabela`
+- `preco_aplicado`
+- `quantidade`
+- `comissao_padrao_percentual`
+- `comissao_aplicada_percentual`
+- `desconto_valor`
+
+Alterações posteriores no cadastro de `produtos` não devem modificar os fatos históricos registrados no Atendimento.
+
+O custo do Produto não foi incluído nesse snapshot.
+
+---
+
+### Princípio de snapshot
+
+Foi reafirmado o princípio:
+
+> Configuração determina a regra atual; o fato operacional preserva a regra e os valores efetivamente aplicados no momento em que ocorreu.
+
+Portanto:
+
+`servicos`
+→ configuração atual.
+
+`produtos`
+→ configuração atual.
+
+`atendimentos.itens_servico`
+→ Serviço efetivamente realizado e condições aplicadas.
+
+`atendimentos.itens_produto`
+→ Produto efetivamente vendido e condições aplicadas.
+
+---
+
+### `valor_servicos`
+
+Tipo:
+
+`Double`
+
+Descrição atribuída ao campo:
+
+> Valor total dos Serviços realizados no Atendimento, considerando os valores aplicados aos itens.
+
+Conceito:
+
+Representa a parcela do Atendimento correspondente aos Serviços realizados.
+
+---
+
+### `valor_produtos`
+
+Tipo:
+
+`Double`
+
+Descrição atribuída ao campo:
+
+> Valor total dos Produtos vendidos no Atendimento, considerando quantidade e valores aplicados aos itens.
+
+Conceito:
+
+Representa a parcela do Atendimento correspondente aos Produtos comercializados.
+
+---
+
+### `desconto_itens`
+
+Tipo:
+
+`Double`
+
+Descrição atribuída ao campo:
+
+> Valor total dos descontos aplicados individualmente aos itens do Atendimento.
+
+Conceito:
+
+Consolida os descontos registrados individualmente nos Serviços e Produtos.
+
+---
+
+### `abatimento`
+
+Tipo:
+
+`Double`
+
+Descrição atribuída ao campo:
+
+> Valor de abatimento aplicado ao Atendimento após a composição dos itens.
+
+Foi mantida a distinção:
+
+`desconto_itens`
+→ desconto aplicado individualmente a Serviços ou Produtos.
+
+`abatimento`
+→ redução aplicada ao Atendimento como um todo.
+
+---
+
+### `valor_total`
+
+Tipo:
+
+`Double`
+
+Descrição atribuída ao campo:
+
+> Valor final do Atendimento após a composição dos Serviços, Produtos, descontos dos itens e abatimentos.
+
+Conceitualmente:
+
+`valor_servicos`
++
+`valor_produtos`
+-
+`desconto_itens`
+-
+`abatimento`
+=
+`valor_total`
+
+Na implementação, o cálculo deverá manter uma única interpretação para os valores dos itens, evitando aplicar o mesmo desconto duas vezes.
+
+---
+
+### `status`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Indica a situação atual do Atendimento ao longo de sua execução.
+
+Domínio atual:
+
+- `ABERTO`
+- `EM_ATENDIMENTO`
+- `REALIZADO`
+- `CANCELADO`
+
+Fluxo principal:
+
+`ABERTO`
+↓
+`EM_ATENDIMENTO`
+↓
+`REALIZADO`
+
+`CANCELADO` representa o encerramento de um Atendimento que não chegou a ser realizado.
+
+Foi mantida a distinção entre os domínios:
+
+`agendamento.status = ATENDIDO`
+→ o compromisso previsto foi cumprido.
+
+`atendimento.status = REALIZADO`
+→ o fato operacional foi concluído.
+
+---
+
+### `iniciado_em`
+
+Tipo:
+
+`DateTime`
+
+Campo acrescentado durante esta higienização.
+
+Descrição atribuída ao campo:
+
+> Data e hora em que a execução do Atendimento foi efetivamente iniciada.
+
+A necessidade surgiu durante a análise dos dados administrativos necessários para geração de métricas.
+
+Foi identificado que apenas possuir o horário previsto e o horário de conclusão não permitiria conhecer corretamente o tempo real de execução.
+
+O registro não deverá gerar uma nova burocracia para o Colaborador.
+
+A própria mudança de status deverá registrar automaticamente o horário:
+
+`ABERTO → EM_ATENDIMENTO`
+
+→ `iniciado_em = Current Time`
+
+Assim, a ação natural de "Iniciar Atendimento" produz automaticamente o fato temporal.
+
+---
+
+### `realizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o Atendimento foi efetivamente concluído.
+
+Da mesma forma:
+
+`EM_ATENDIMENTO → REALIZADO`
+
+→ `realizado_em = Current Time`
+
+O horário representa a conclusão operacional do Atendimento.
+
+---
+
+### Marcos temporais
+
+Com a inclusão de `iniciado_em`, o modelo passa a distinguir três momentos:
+
+`agendamento.data_hora`
+→ previsão de início.
+
+`atendimento.iniciado_em`
+→ início efetivo.
+
+`atendimento.realizado_em`
+→ conclusão efetiva.
+
+Isso permitirá futuramente calcular métricas como:
+
+atraso
+=
+início efetivo - horário previsto.
+
+duração real
+=
+conclusão efetiva - início efetivo.
+
+Também permitirá comparar:
+
+duração prevista
+×
+duração efetivamente realizada.
+
+Essas métricas não precisam ser implementadas neste momento.
+
+O objetivo atual é preservar os fatos necessários para que possam ser calculadas posteriormente.
+
+---
+
+### Preservação dos fatos temporais
+
+`iniciado_em` e `realizado_em` representam fatos históricos.
+
+Depois de registrados, não devem ser recalculados simplesmente porque o `status` foi posteriormente consultado ou alterado.
+
+A mudança de status é o evento que produz o timestamp no momento correspondente.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o Atendimento foi registrado no MotionLab.
+
+Esse timestamp representa a criação do registro e não substitui `iniciado_em` ou `realizado_em`.
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pelo registro do Atendimento no MotionLab.
+
+Identifica quem realizou a criação do registro.
+
+---
+
+### `atualizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora da última atualização do Atendimento.
+
+Mantém a auditoria temporal das alterações realizadas no registro.
+
+---
+
+### `atualizado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela última atualização do Atendimento.
+
+Identifica quem realizou a alteração mais recente.
+
+---
+
+### Atendimento como fonte do faturamento operacional
+
+Foi preservado o princípio de que o Atendimento representa o fato operacional gerador da receita.
+
+Portanto, o faturamento operacional não deve ser obtido pela simples soma indiscriminada de `fluxo_caixa`.
+
+Conceitualmente:
+
+`atendimentos`
+→ aquilo que foi efetivamente realizado/vendido.
+
+`fluxo_caixa`
+→ efeitos financeiros decorrentes dos fatos de negócio.
+
+Essa separação evita duplicidade quando um mesmo Atendimento possuir diferentes eventos financeiros associados.
+
+---
+
+### Relação com estoque
+
+Produtos vendidos no Atendimento representam o fato comercial.
+
+A correspondente redução do estoque pertence a outro domínio:
+
+`atendimentos.itens_produto`
+→ Produto efetivamente vendido.
+
+`movimentacao_estoque`
+→ saída física do Produto.
+
+Quando a movimentação de estoque decorrer da venda:
+
+`movimentacao_estoque.atendimento_ref`
+→ permite rastrear o Atendimento que originou a saída.
+
+Assim, venda e estoque permanecem relacionados sem representar o mesmo fato.
+
+---
+
+### Relação com o fluxo financeiro
+
+Um Atendimento pode produzir movimentações financeiras posteriormente.
+
+A ligação ocorre por:
+
+`fluxo_caixa.atendimento_ref`
+→ `atendimentos`
+
+Isso permite separar:
+
+realização do Atendimento
+→ fato operacional.
+
+liquidação
+→ fato financeiro.
+
+O momento da realização não precisa ser necessariamente o mesmo momento da movimentação financeira.
+
+---
+
+### Imutabilidade histórica
+
+Atendimentos concluídos representam fatos históricos.
+
+Alterações futuras em:
+
+- preço do Serviço;
+- preço do Produto;
+- comissão padrão;
+- configuração específica do Colaborador;
+- cadastro dos itens;
+
+não devem alterar o Atendimento realizado.
+
+Os snapshots preservam aquilo que efetivamente foi aplicado naquele momento.
+
+Uma eventual necessidade futura de estorno ou correção deverá ser modelada como processo próprio, preservando o fato original e sua rastreabilidade, em vez de simplesmente reescrever o histórico.
+
+Essa funcionalidade não será implementada antecipadamente no MVP.
+
+---
+
+### Decisão final
+
+A collection `atendimentos` foi considerada higienizada para o MVP.
+
+Durante a revisão:
+
+- foram mantidos os snapshots de Serviços e Produtos;
+- foi preservada a separação entre Agendamento e Atendimento;
+- foi validado o cenário de troca entre Colaborador agendado e Colaborador executor;
+- foi mantido `agendamento_ref` opcional para permitir encaixes;
+- foram separados descontos de itens e abatimento geral;
+- foi acrescentado `iniciado_em`;
+- foi definido que as transições de status registrarão automaticamente os timestamps operacionais;
+- foram preservados os fatos necessários para futuras métricas administrativas;
+- não foram adicionadas métricas derivadas ao documento.
+
+A sequência operacional fica:
+
+Agendamento
+→ previsão.
+
+Atendimento ABERTO
+→ fato operacional criado.
+
+Iniciar Atendimento
+→ `status = EM_ATENDIMENTO`
+→ `iniciado_em = Current Time`.
+
+Finalizar Atendimento
+→ `status = REALIZADO`
+→ `realizado_em = Current Time`.
+
+A partir desses fatos, o MotionLab poderá futuramente produzir métricas administrativas sem aumentar a burocracia operacional do Colaborador.
 ### Objetivo
 
 Revisar a responsabilidade, os campos e as regras de integridade da collection `categorias_financeiras`, consolidando sua função como catálogo de classificação das movimentações registradas em `fluxo_caixa`.
