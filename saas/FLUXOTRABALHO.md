@@ -1,5 +1,510 @@
 
-## 2026-09-24 — Higienização da collection `redes_franquias`
+## 2026-09-24 — Higienização da collection `estabelecimentos`
+
+### Objetivo
+
+Revisar a responsabilidade, os campos e as regras de integridade da collection `estabelecimentos`, consolidando a representação das unidades operacionais pertencentes às Redes clientes do MotionLab.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade:
+
+> Registra as unidades operacionais pertencentes a uma Rede, identificando sua estrutura como Matriz ou Filial e mantendo seus dados cadastrais e de apresentação.
+
+Conceitualmente:
+
+Rede
+└── Estabelecimentos
+    ├── MATRIZ
+    ├── FILIAL
+    └── FILIAL
+
+A Rede representa a organização cliente do SaaS.
+
+Os Estabelecimentos representam as unidades nas quais efetivamente ocorrem as operações do negócio.
+
+---
+
+### Estrutura revisada
+
+Após a higienização, a collection possui:
+
+- `nome_fantasia` — String
+- `logo_url` — String
+- `gateway_account_id` — String
+- `criado_em` — DateTime
+- `rede_ref` — Document Reference → `redes_franquias`
+- `matriz_ref` — Document Reference → `estabelecimentos`
+- `tipo` — String
+- `atualizado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_por_ref` — Document Reference → `users`
+- `telefones` — List<Data `TelefoneStruct`>
+- `endereco_dados` — Data `EnderecoStruct`
+- `identidade_visual_dados` — Data `IdentidadeVisualStruct`
+- `ativo` — Boolean
+
+---
+
+### `nome_fantasia`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Nome utilizado para identificar e apresentar o Estabelecimento no MotionLab.
+
+Conceito:
+
+Representa o nome da unidade utilizado nas interfaces e processos do sistema.
+
+Não precisa representar obrigatoriamente sua denominação jurídica.
+
+---
+
+### `logo_url`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Endereço da imagem utilizada como logotipo do Estabelecimento.
+
+Conceito:
+
+Permite utilizar a identidade visual da unidade nas interfaces do MotionLab.
+
+O campo armazena a referência para a imagem, e não a própria imagem.
+
+---
+
+### `gateway_account_id`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Identificador da conta do Estabelecimento no gateway de pagamento, quando aplicável.
+
+Conceito:
+
+Representa uma eventual conta financeira da unidade no gateway utilizado pela operação.
+
+Não deve ser confundido com:
+
+- `gateway_plan_id`, relacionado ao plano comercial do SaaS;
+- `gateway_subscription_id`, relacionado à assinatura da Rede.
+
+O campo poderá permanecer vazio quando não houver integração correspondente.
+
+---
+
+### `rede_ref`
+
+Tipo:
+
+`Document Reference → redes_franquias`
+
+Descrição atribuída ao campo:
+
+> Rede à qual pertence o Estabelecimento.
+
+Conceito:
+
+Define o vínculo do Estabelecimento com seu tenant.
+
+Todo Estabelecimento pertence a uma Rede.
+
+Conceitualmente:
+
+Rede
+↓
+Estabelecimento
+
+---
+
+### `matriz_ref`
+
+Tipo:
+
+`Document Reference → estabelecimentos`
+
+Descrição atribuída ao campo:
+
+> Matriz à qual o Estabelecimento está vinculado quando representar uma Filial.
+
+Conceito:
+
+O campo representa a relação hierárquica entre uma Filial e sua Matriz.
+
+Foi definida a regra:
+
+`tipo = MATRIZ`
+→ `matriz_ref` vazio.
+
+`tipo = FILIAL`
+→ `matriz_ref` referencia o Estabelecimento MATRIZ.
+
+A Matriz não referencia a si própria.
+
+---
+
+### `tipo`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Define o papel do Estabelecimento na estrutura da Rede.
+
+Domínio atual:
+
+- `MATRIZ`
+- `FILIAL`
+
+O campo permanece como `String`.
+
+Os valores válidos deverão ser controlados pelo código da aplicação, evitando valores arbitrários no Firestore.
+
+---
+
+### Integridade entre `tipo`, `matriz_ref` e `rede_ref`
+
+Durante a higienização foi formalizada a seguinte regra de integridade:
+
+Uma Filial somente pode apontar em `matriz_ref` para um Estabelecimento cujo:
+
+- `tipo = MATRIZ`;
+- `rede_ref` seja igual à `rede_ref` da própria Filial.
+
+Portanto, não são situações válidas:
+
+FILIAL → FILIAL
+
+FILIAL da Rede A → MATRIZ da Rede B
+
+MATRIZ → ela própria
+
+A consistência dessas relações deverá ser garantida pela aplicação.
+
+---
+
+### `telefones`
+
+Tipo:
+
+`List<Data TelefoneStruct>`
+
+Descrição atribuída ao campo:
+
+> Telefones de contato do Estabelecimento.
+
+Conceito:
+
+Os telefones são mantidos diretamente no documento do Estabelecimento por representarem um conjunto pequeno e limitado de dados cadastrais.
+
+O `TelefoneStruct` contém:
+
+- `pais`;
+- `ddd`;
+- `numero`;
+- `tipo`;
+- `principal`.
+
+Essa estrutura substitui a antiga modelagem baseada em uma subcollection específica para telefone.
+
+A decisão reduz leituras adicionais e mantém os dados diretamente relacionados à unidade em seu próprio documento.
+
+---
+
+### `endereco_dados`
+
+Tipo:
+
+`Data EnderecoStruct`
+
+Descrição atribuída ao campo:
+
+> Dados do endereço físico do Estabelecimento.
+
+O `EnderecoStruct` contém:
+
+- `codigo_postal`;
+- `logradouro`;
+- `numero`;
+- `complemento`;
+- `bairro`;
+- `cidade`;
+- `unidade_federacao`.
+
+Conceito:
+
+O endereço representa um conjunto pequeno e delimitado de informações pertencentes diretamente ao Estabelecimento.
+
+Por esse motivo, permanece embutido no documento em vez de utilizar uma collection ou subcollection independente.
+
+---
+
+### `identidade_visual_dados`
+
+Tipo:
+
+`Data IdentidadeVisualStruct`
+
+Descrição atribuída ao campo:
+
+> Configurações de identidade visual utilizadas na apresentação do Estabelecimento.
+
+O `IdentidadeVisualStruct` contém atualmente:
+
+- `cor_primaria`;
+- `cor_secundaria`.
+
+Conceito:
+
+As pequenas configurações visuais da unidade permanecem embutidas no documento.
+
+Isso evita uma consulta adicional apenas para recuperar propriedades simples utilizadas na apresentação da interface.
+
+---
+
+### `ativo`
+
+Tipo:
+
+`Boolean`
+
+Descrição atribuída ao campo:
+
+> Indica se o Estabelecimento está ativo para novas operações, permitindo sua desativação lógica sem excluir o histórico.
+
+Conceito:
+
+O campo implementa a deleção lógica do Estabelecimento.
+
+Quando:
+
+`ativo = true`
+
+o Estabelecimento está disponível para novas operações.
+
+Quando:
+
+`ativo = false`
+
+o Estabelecimento permanece cadastrado e todo seu histórico é preservado, porém deixa de participar de novas operações.
+
+A desativação não representa exclusão física do documento.
+
+---
+
+### Deleção lógica
+
+Durante a revisão foi identificada a necessidade de preservar Estabelecimentos que encerrem suas atividades.
+
+A exclusão física poderia comprometer referências históricas existentes em outros domínios.
+
+Exemplos:
+
+- Atendimentos;
+- movimentações de estoque;
+- fluxo de caixa;
+- colaboradores;
+- agendamentos;
+- demais fatos operacionais e financeiros.
+
+Foi então adotado o princípio:
+
+> Estabelecimentos que possuam histórico operacional não devem ser excluídos fisicamente no fluxo normal do sistema; devem ser desativados.
+
+Conceitualmente:
+
+EXCLUSÃO FÍSICA
+→ documento removido
+→ risco de perda de referência histórica.
+
+DELEÇÃO LÓGICA
+→ `ativo = false`
+→ documento preservado
+→ referências preservadas
+→ histórico preservado
+→ novas operações bloqueadas.
+
+A eventual reativação deve ser uma ação explícita de usuário autorizado, e não consequência automática de uma nova operação.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o Estabelecimento foi cadastrado no MotionLab.
+
+Conceito:
+
+Registra o momento de criação do cadastro da unidade.
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pelo cadastro do Estabelecimento no MotionLab.
+
+Conceito:
+
+Identifica quem realizou a criação do cadastro.
+
+---
+
+### `atualizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora da última atualização dos dados do Estabelecimento.
+
+Conceito:
+
+Mantém a auditoria temporal das alterações realizadas no cadastro.
+
+---
+
+### `atualizado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela última atualização dos dados do Estabelecimento.
+
+Conceito:
+
+Permite identificar quem realizou a alteração mais recente.
+
+---
+
+### Evolução da modelagem dos dados cadastrais
+
+A estrutura atual consolida uma evolução do modelo anterior.
+
+Os conceitos de telefone, endereço e identidade visual permanecem necessários, mas deixaram de exigir documentos independentes.
+
+Foram incorporados ao Estabelecimento por meio de Data Types:
+
+`telefones`
+→ `List<TelefoneStruct>`
+
+`endereco_dados`
+→ `EnderecoStruct`
+
+`identidade_visual_dados`
+→ `IdentidadeVisualStruct`
+
+Essa decisão mantém pequenos dados cadastrais próximos ao documento ao qual pertencem e reduz consultas desnecessárias.
+
+---
+
+### Separação de responsabilidades
+
+A arquitetura fica consolidada da seguinte forma:
+
+`redes_franquias`
+→ organização cliente/tenant.
+
+`estabelecimentos`
+→ unidades operacionais da Rede.
+
+`assinaturas_saas`
+→ contratação do SaaS pela Rede.
+
+`atendimentos`
+→ fatos operacionais ocorridos nos Estabelecimentos.
+
+`fluxo_caixa`
+→ efeitos financeiros ocorridos nos Estabelecimentos.
+
+`movimentacao_estoque`
+→ fatos que alteram o estoque dos Estabelecimentos.
+
+Essa separação evita transformar `estabelecimentos` em um documento concentrador de informações pertencentes a outros domínios.
+
+---
+
+### Decisão final
+
+A collection `estabelecimentos` foi considerada higienizada para o MVP.
+
+Durante a revisão:
+
+- foram mantidos os dados cadastrais essenciais;
+- foram preservados os Data Types embutidos para telefone, endereço e identidade visual;
+- foi formalizada a relação `MATRIZ` / `FILIAL`;
+- foi definida a integridade entre `tipo`, `matriz_ref` e `rede_ref`;
+- foi acrescentado `ativo`;
+- foi adotada a deleção lógica como estratégia para preservar o histórico operacional.
+
+Estrutura conceitual final:
+
+Rede
+↓
+Estabelecimentos
+├── MATRIZ
+└── FILIAIS
+
+Cada Estabelecimento preserva sua identidade cadastral e participa dos demais domínios por meio de referências, sem concentrar em seu documento os fatos operacionais, financeiros ou de estoque.
+Exatamente. **`ativo = false` funciona como uma deleção lógica** do estabelecimento.
+
+A diferença para uma exclusão física fica:
+
+```text id="6kfb29"
+EXCLUSÃO FÍSICA
+→ documento é removido
+→ pode quebrar referências históricas
+
+DELEÇÃO LÓGICA
+ativo = false
+→ documento permanece
+→ histórico permanece íntegro
+→ novas operações são bloqueadas
+```
+
+Isso é especialmente importante no MotionLab porque `estabelecimento_ref` aparece em atendimentos, fluxo de caixa, estoque, colaboradores e outros fatos históricos.
+
+Eu ajustaria inclusive a descrição para deixar essa intenção mais clara:
+
+```text id="6fpb7q"
+Indica se o Estabelecimento está ativo para novas operações, permitindo sua desativação lógica sem excluir o histórico.
+```
+
+E adotaria como princípio: **Estabelecimentos que já possuem histórico operacional não devem ser excluídos fisicamente no fluxo normal do sistema; devem ser desativados.**
+
+
+
+
+
 
 ### Objetivo
 
