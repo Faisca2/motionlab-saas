@@ -1,3 +1,267 @@
+## 2026-09-24 — Deploy do modelo e segurança como critério de conclusão das jornadas
+
+### Contexto
+
+Após a conclusão do segundo ciclo de revisão das Collections atualmente existentes no MotionLab, foi realizado o deploy do modelo pelo FlutterFlow.
+
+O deploy representa a materialização da baseline arquitetural atualmente definida para continuidade da implementação do MVP.
+
+Foi observado que o Firestore não materializa previamente Collections e campos como um banco relacional.
+
+Collections e campos passam a ser visíveis no banco conforme documentos reais são criados.
+
+Portanto, o Schema definido no FlutterFlow permanece como referência estrutural do modelo, enquanto o Firebase Console apresenta os documentos efetivamente persistidos.
+
+---
+
+### Situação das Security Rules após o deploy
+
+Após o deploy foram analisadas as Firestore Security Rules geradas/configuradas atualmente.
+
+Foi identificado que diversas Collections ainda possuem regras temporariamente permissivas, por exemplo:
+
+`allow create: if true;`
+
+`allow read: if true;`
+
+Também existem operações atualmente bloqueadas por:
+
+`allow write: if false;`
+
+Essas regras refletem o estágio de implementação e não representam a política de segurança definitiva do MotionLab.
+
+Foi decidido não interromper a implementação das jornadas para tentar definir antecipadamente todas as regras de segurança do produto.
+
+As permissões serão fechadas progressivamente conforme as jornadas forem implementadas e seus requisitos de acesso se tornarem concretos.
+
+---
+
+### Segurança como disciplina transversal
+
+Foi definido que segurança não será tratada apenas como uma etapa final do projeto.
+
+Ela passa a ser considerada uma disciplina transversal do desenvolvimento do MotionLab.
+
+Foram identificadas duas perspectivas principais.
+
+#### Segurança interna — autorização
+
+A primeira perspectiva trata dos próprios usuários legitimamente autenticados no MotionLab.
+
+Autenticação não significa autorização irrestrita.
+
+O fato de um usuário possuir credenciais válidas não significa que possa consultar ou alterar qualquer informação existente no sistema.
+
+As regras deverão considerar, conforme cada jornada:
+
+- `role`;
+- Rede à qual o usuário pertence;
+- Estabelecimento ao qual está vinculado;
+- responsabilidade da operação;
+- escopo administrativo;
+- isolamento entre tenants.
+
+Exemplos de situações que deverão ser impedidas:
+
+- usuário da Rede A acessar dados da Rede B;
+- usuário de uma Filial acessar dados restritos de outra Filial;
+- Colaborador executar operações administrativas sem autorização;
+- usuário autenticado manipular diretamente uma referência para obter acesso fora de seu escopo.
+
+A interface do FlutterFlow não será considerada mecanismo suficiente de segurança.
+
+Ocultar um botão ou uma página não substitui uma regra de autorização.
+
+As Firestore Security Rules deverão impedir a operação mesmo quando a tentativa ocorrer diretamente contra o Firestore, fora do fluxo normal da interface.
+
+---
+
+### Segurança externa
+
+A segunda perspectiva trata de acessos não autorizados externos à operação normal do MotionLab.
+
+Foi considerado que a baixa relevância ou o pequeno porte inicial do produto não eliminam riscos de tentativa de acesso indevido.
+
+Aplicações disponíveis na internet podem receber:
+
+- tentativas automatizadas;
+- exploração oportunista;
+- manipulação de identificadores;
+- consultas diretas;
+- testes realizados por pessoas tentando desenvolver conhecimentos de invasão;
+- exploração de regras excessivamente permissivas.
+
+Portanto, a ausência de notoriedade do produto não será utilizada como justificativa para negligenciar segurança.
+
+---
+
+### Princípio de autenticação e autorização
+
+Foi estabelecido o seguinte princípio:
+
+> Autenticação responde quem é o usuário. Autorização determina o que esse usuário pode fazer e sobre quais dados.
+
+Também foi estabelecido:
+
+> Nenhuma informação enviada pelo cliente deve, sozinha, conceder acesso a outro tenant.
+
+Campos e relações já existentes no modelo, como:
+
+- `rede_ref`;
+- `estabelecimento_ref`;
+- `user_ref`;
+- `role`;
+- relações entre Matriz e Filiais;
+
+serão utilizados para estabelecer as fronteiras de autorização conforme as jornadas forem implementadas.
+
+---
+
+### Fechamento progressivo das regras
+
+Durante a fase atual de desenvolvimento, algumas regras poderão permanecer temporariamente permissivas para permitir a construção e validação dos fluxos.
+
+Entretanto, cada jornada implementada deverá provocar também a implementação das regras de segurança correspondentes.
+
+Conceitualmente:
+
+Funcionalidade implementada
+↓
+Fluxo funcional validado
+↓
+Regras de acesso definidas
+↓
+Testes com usuários autorizados
+↓
+Testes com usuários não autorizados
+↓
+Isolamento multi-tenant validado
+↓
+Jornada concluída.
+
+Dessa forma, segurança não será acumulada como uma grande tarefa para o final do desenvolvimento.
+
+Cada jornada deverá entregar também sua parcela de autorização e isolamento.
+
+---
+
+### Testes positivos e negativos
+
+Para cada jornada deverão existir, conforme aplicável, dois tipos de validação.
+
+#### Teste positivo
+
+Confirmar que o usuário autorizado consegue executar aquilo que sua função permite.
+
+Exemplo:
+
+Usuário autorizado
+→ acessa o dado permitido
+→ executa a operação prevista
+→ operação concluída.
+
+#### Teste negativo
+
+Confirmar que usuários fora do escopo não conseguem executar a mesma operação.
+
+Exemplos:
+
+Usuário com `role` inadequado
+→ acesso negado.
+
+Usuário da Rede A tentando acessar dados da Rede B
+→ acesso negado.
+
+Usuário de Estabelecimento sem permissão sobre outra unidade
+→ acesso negado.
+
+Usuário não autenticado tentando acessar informação protegida
+→ acesso negado.
+
+O teste negativo passa a ser tão importante quanto confirmar que o fluxo autorizado funciona.
+
+---
+
+### Isolamento multi-tenant
+
+Por se tratar de um SaaS multi-tenant, o isolamento entre Redes é requisito fundamental.
+
+A autorização não deverá verificar apenas se:
+
+`request.auth != null`
+
+Também deverá verificar se o usuário autenticado possui relação válida com o dado solicitado.
+
+Conceitualmente:
+
+Usuário autenticado
++
+papel autorizado
++
+tenant autorizado
++
+escopo operacional autorizado
+=
+operação permitida.
+
+A implementação exata dessas regras será realizada conforme cada jornada for construída.
+
+---
+
+### Critério de conclusão de uma jornada
+
+Foi alterado o conceito de "jornada concluída" no projeto.
+
+Anteriormente, poderia ser considerado suficiente implementar o fluxo funcional e sua persistência.
+
+A partir deste marco foi estabelecido:
+
+> Jornada concluída = funcionalidade + persistência + autorização + isolamento multi-tenant testados.
+
+Portanto, uma jornada somente deverá ser considerada concluída quando:
+
+- a funcionalidade estiver implementada;
+- os dados forem persistidos corretamente;
+- os usuários autorizados conseguirem executar a operação;
+- usuários sem autorização forem bloqueados;
+- o isolamento entre Redes e Estabelecimentos estiver validado quando aplicável.
+
+---
+
+### Segurança antes da produção
+
+O fechamento progressivo das regras durante o desenvolvimento não elimina a necessidade de uma revisão global antes da disponibilização do produto em produção.
+
+Antes da produção deverá ser realizada uma revisão final das Security Rules e das fronteiras de acesso.
+
+Dados privados de negócio não deverão permanecer em produção com regras equivalentes a:
+
+`allow read: if true;`
+
+ou:
+
+`allow create: if true;`
+
+quando essas operações deveriam exigir autenticação e autorização.
+
+---
+
+### Decisão final
+
+A segurança passa oficialmente a fazer parte do critério de desenvolvimento das jornadas do MotionLab.
+
+A estratégia será:
+
+1. implementar a jornada;
+2. validar seu comportamento funcional;
+3. definir as permissões necessárias;
+4. implementar as regras correspondentes;
+5. testar os acessos autorizados;
+6. testar tentativas de acesso indevido;
+7. validar o isolamento multi-tenant;
+8. somente então considerar a jornada concluída.
+
+Assim, segurança interna e externa permanecem continuamente no radar do projeto, sem exigir que toda a política de autorização do produto seja antecipada antes que as próprias jornadas estejam implementadas.
 ## 2026-09-24 — Conclusão do segundo ciclo de revisão das Collections
 
 ### Marco da modelagem
