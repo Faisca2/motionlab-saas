@@ -1,4 +1,164 @@
+## 2026-09-24 — Conclusão do segundo ciclo de revisão das Collections
 
+### Marco da modelagem
+
+Foi concluído um segundo ciclo de revisão arquitetural e higienização das Collections atualmente existentes no MotionLab.
+
+Foram revisadas as 15 Collections presentes no modelo:
+
+- `users`
+- `servicos`
+- `agendamentos`
+- `planos_assinatura`
+- `assinaturas_saas`
+- `produtos`
+- `movimentacao_estoque`
+- `fluxo_caixa`
+- `convite`
+- `redes_franquias`
+- `estabelecimentos`
+- `colaboradores`
+- `clientes`
+- `categorias_financeiras`
+- `atendimentos`
+
+A revisão não se limitou à conferência de nomes e tipos de campos.
+
+Foram analisados, conforme aplicável:
+
+- responsabilidade de cada Collection;
+- responsabilidade dos campos;
+- referências entre documentos;
+- auditoria;
+- domínios de valores controlados;
+- deleção lógica;
+- separação entre configuração e fato;
+- preservação histórica;
+- fonte de verdade de cada domínio;
+- redundâncias justificadas;
+- limites entre os diferentes domínios;
+- cenários reais de utilização.
+
+### Resultado do segundo ciclo
+
+O conjunto atual de Collections passa a ser considerado uma baseline arquitetural consistente para continuidade do desenvolvimento do MVP.
+
+Isso não significa que o modelo esteja congelado ou concluído definitivamente.
+
+A partir deste ponto, a evolução deverá ocorrer principalmente quando a análise de uma jornada ou requisito concreto demonstrar a existência de um novo fato de negócio que precise ser persistido.
+
+O princípio adotado é:
+
+> Não criar complexidade antecipadamente, mas também não comprimir fatos de negócio diferentes em uma única estrutura apenas para evitar a evolução do modelo.
+
+### Exemplo identificado: comprar, pagar e receber
+
+Durante a modelagem já foi possível identificar um exemplo importante de evolução futura.
+
+Comprar, pagar e receber não representam necessariamente o mesmo fato.
+
+Uma aquisição pode ocorrer em determinado momento e seu pagamento ocorrer posteriormente.
+
+Da mesma forma, em uma operação de venda ou prestação de serviço, o fato operacional, a liquidação pelo cliente e a efetiva disponibilidade financeira podem ocorrer em momentos distintos.
+
+Conceitualmente:
+
+COMPRA
+→ fato comercial/operacional de aquisição.
+
+PAGAMENTO
+→ fato financeiro relacionado à quitação de uma obrigação.
+
+RECEBIMENTO
+→ fato financeiro relacionado à entrada ou disponibilidade de recursos.
+
+Esses fatos podem coincidir temporalmente em algumas operações, mas não devem ser considerados equivalentes apenas porque às vezes acontecem juntos.
+
+Exemplo:
+
+Dia 10
+→ aquisição de produtos.
+
+Dia 10
+→ produtos entram no estoque.
+
+Dia 20
+→ obrigação referente à compra é paga.
+
+O fato de estoque ocorreu no dia 10.
+
+O fato financeiro ocorreu no dia 20.
+
+Portanto, uma movimentação de estoque não deve ser utilizada como substituta do registro financeiro e o registro financeiro não deve ser utilizado como substituto do fato de aquisição.
+
+### Consequência arquitetural
+
+A análise detalhada das jornadas de compra, pagamento e recebimento foi deliberadamente deixada para uma etapa futura.
+
+Quando essas jornadas forem modeladas, poderão surgir:
+
+- novos campos;
+- novas referências;
+- novos estados;
+- novas Collections;
+- novas regras de integração entre os domínios operacional, financeiro e de estoque.
+
+Essas estruturas não serão criadas antecipadamente apenas para prever possibilidades.
+
+Serão introduzidas quando os fatos de negócio e suas responsabilidades estiverem suficientemente compreendidos.
+
+### Estruturas conceituais ainda não materializadas
+
+Também existem conceitos já identificados durante a arquitetura que ainda não aparecem necessariamente como Collections no Firestore atual.
+
+Entre eles estão estruturas relacionadas a:
+
+- disponibilidade de Colaboradores;
+- eventos de força de trabalho;
+- configurações específicas entre Colaborador e Serviço;
+- possíveis processos futuros de compras, obrigações, pagamentos e recebimentos;
+- processos de caixa físico e sessões de caixa, caso sejam necessários.
+
+Portanto, a conclusão deste segundo ciclo significa:
+
+> As Collections atualmente existentes foram novamente analisadas e possuem responsabilidades coerentes com o modelo atual.
+
+Não significa:
+
+> Todas as Collections necessárias ao produto já existem.
+
+### Aprendizado do segundo ciclo
+
+O próprio processo de revisão demonstrou a importância de revisitar o modelo.
+
+Durante o segundo ciclo, por exemplo, a análise de `atendimentos` evidenciou a necessidade de registrar `iniciado_em`.
+
+O campo não foi criado simplesmente por conveniência técnica.
+
+Foi identificado porque, sem o horário efetivo de início, o MotionLab não teria os fatos necessários para produzir posteriormente métricas como:
+
+- atraso do Atendimento;
+- duração efetiva;
+- comparação entre duração prevista e realizada;
+- indicadores de produtividade e capacidade operacional.
+
+A solução também não acrescentou burocracia ao processo, pois o próprio evento de mudança para `EM_ATENDIMENTO` poderá registrar automaticamente o timestamp.
+
+Esse caso reforçou o princípio:
+
+> Primeiro compreender o fato de negócio e a informação necessária; depois decidir como persistir.
+
+### Baseline a partir deste marco
+
+A partir deste ponto, o modelo atual deve ser tratado como baseline para continuidade do MVP.
+
+Novos campos e Collections deverão surgir de necessidades concretas identificadas nas próximas jornadas, e não de tentativa de antecipar todas as possibilidades futuras.
+
+A arquitetura permanece evolutiva.
+
+O objetivo não é tornar o modelo imutável.
+
+O objetivo é permitir que ele evolua de forma consciente, mantendo claras as responsabilidades e preservando a integridade dos fatos históricos.
 ## 2026-09-24 — Higienização da collection `atendimentos`
 
 ### Objetivo
