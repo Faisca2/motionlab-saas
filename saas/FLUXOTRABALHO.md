@@ -1,5 +1,361 @@
 
-## 2026-09-24 — Higienização da collection `estabelecimentos`
+## 2026-09-24 — Higienização da collection `colaboradores`
+
+### Objetivo
+
+Revisar a responsabilidade, os campos e os limites da collection `colaboradores`, consolidando a representação dos profissionais que atuam operacionalmente nos Estabelecimentos do MotionLab.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade:
+
+> Registra os Colaboradores que atuam nos Estabelecimentos, independentemente de possuírem acesso como usuários do MotionLab.
+
+Foi reforçada uma distinção importante:
+
+`Colaborador ≠ User`
+
+Um Colaborador representa uma pessoa que exerce atividades operacionais no Estabelecimento.
+
+Um User representa uma pessoa que possui identidade/acesso ao sistema.
+
+Portanto, um Colaborador pode existir normalmente sem possuir uma conta de usuário no MotionLab.
+
+---
+
+### Estrutura revisada
+
+A collection permanece com os seguintes campos:
+
+- `estabelecimento_ref` — Document Reference → `estabelecimentos`
+- `user_ref` — Document Reference → `users`
+- `nome` — String
+- `ativo` — Boolean
+- `criado_em` — DateTime
+- `atualizado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+- `atualizado_por_ref` — Document Reference → `users`
+- `servicos_ref` — List<Document Reference → `servicos`>
+
+Nenhum novo campo foi considerado necessário nesta etapa.
+
+---
+
+### `estabelecimento_ref`
+
+Tipo:
+
+`Document Reference → estabelecimentos`
+
+Descrição atribuída ao campo:
+
+> Estabelecimento ao qual o Colaborador está vinculado para exercer suas atividades.
+
+Conceito:
+
+Determina a unidade operacional à qual pertence o vínculo do Colaborador.
+
+No modelo atual, cada documento de Colaborador possui vínculo com apenas um Estabelecimento.
+
+---
+
+### Um vínculo operacional por Estabelecimento
+
+Durante a revisão foi discutido o cenário em que a mesma pessoa possa trabalhar em mais de um Estabelecimento da Rede.
+
+Foi decidido não antecipar essa complexidade no MVP.
+
+A decisão foi:
+
+> No MVP, o Colaborador possui vínculo operacional com um único Estabelecimento. A necessidade de compartilhamento de um mesmo Colaborador entre unidades somente será remodelada caso seja identificada na utilização real pelos clientes.
+
+Conceitualmente:
+
+1 documento `colaboradores`
+→ 1 `estabelecimento_ref`
+→ 1 vínculo operacional.
+
+Caso a mesma pessoa trabalhe atualmente em duas unidades, o modelo admite dois vínculos operacionais distintos, um para cada Estabelecimento.
+
+Exemplo conceitual:
+
+Pessoa
+├── Colaborador da Matriz
+└── Colaborador da Filial
+
+Essa decisão simplifica:
+
+- disponibilidade;
+- serviços habilitados;
+- configurações específicas;
+- comissões;
+- atendimentos;
+- histórico operacional por unidade.
+
+Se clientes reais demonstrarem necessidade de um modelo compartilhado entre unidades, essa estrutura será reavaliada com base no caso de uso concreto.
+
+---
+
+### `user_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário vinculado ao Colaborador quando este possui acesso ao MotionLab.
+
+Conceito:
+
+O campo é opcional.
+
+Colaborador sem acesso ao sistema:
+
+`user_ref = vazio`
+
+Colaborador com acesso ao MotionLab:
+
+`user_ref → users`
+
+Isso permite cadastrar profissionais que trabalham no Estabelecimento sem obrigá-los a possuir autenticação no sistema.
+
+Também preserva a separação entre identidade operacional e identidade de acesso.
+
+---
+
+### `nome`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Nome do Colaborador utilizado para sua identificação no Estabelecimento.
+
+Conceito:
+
+O nome pertence ao cadastro operacional do Colaborador.
+
+Mesmo quando existir `user_ref`, o cadastro operacional não deve depender exclusivamente de `users.display_name`.
+
+---
+
+### `ativo`
+
+Tipo:
+
+`Boolean`
+
+Descrição atribuída ao campo:
+
+> Indica se o Colaborador está ativo para novas operações no Estabelecimento, permitindo sua desativação lógica sem excluir o histórico.
+
+Conceito:
+
+Foi aplicado o mesmo princípio de deleção lógica adotado para Estabelecimentos.
+
+Quando:
+
+`ativo = true`
+
+o Colaborador pode participar de novas operações.
+
+Quando:
+
+`ativo = false`
+
+o cadastro permanece armazenado e seu histórico é preservado, mas o Colaborador deixa de participar de novas operações.
+
+Isso evita excluir documentos que já estejam referenciados por fatos históricos, principalmente Atendimentos e Agendamentos.
+
+A desativação não representa exclusão física.
+
+---
+
+### `servicos_ref`
+
+Tipo:
+
+`List<Document Reference → servicos>`
+
+Descrição atribuída ao campo:
+
+> Serviços que o Colaborador está habilitado a realizar no Estabelecimento.
+
+Conceito:
+
+A lista responde diretamente à pergunta:
+
+> Quais Serviços este Colaborador pode executar?
+
+Foi decidido manter essa informação no próprio Colaborador para permitir consultas simples e frequentes.
+
+A existência futura de `colaborador_servico_config` não substitui `servicos_ref`.
+
+As responsabilidades são diferentes:
+
+`colaboradores.servicos_ref`
+→ define quais Serviços o Colaborador pode executar.
+
+`colaborador_servico_config`
+→ registra exceções específicas de tempo ou comissão para determinada combinação Colaborador + Serviço.
+
+Assim, não será necessário criar uma configuração individual para cada Serviço habilitado.
+
+Quando não houver exceção, aplicam-se os parâmetros padrão definidos no Serviço.
+
+---
+
+### Separação entre habilitação e configuração
+
+Foi mantido o princípio:
+
+Serviço
+→ possui duração e comissão padrão.
+
+Colaborador
+→ informa quais Serviços está habilitado a executar.
+
+Configuração Colaborador + Serviço
+→ somente existe quando houver uma exceção ao padrão.
+
+Essa separação evita criar documentos desnecessários para todas as combinações possíveis entre Colaboradores e Serviços.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o Colaborador foi cadastrado no MotionLab.
+
+Conceito:
+
+Registra o momento de criação do cadastro operacional do Colaborador.
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pelo cadastro do Colaborador no MotionLab.
+
+Conceito:
+
+Identifica quem realizou o cadastro.
+
+Não deve ser confundido com `user_ref`.
+
+`user_ref`
+→ identidade de acesso eventualmente vinculada ao próprio Colaborador.
+
+`criado_por_ref`
+→ usuário que realizou o cadastro.
+
+---
+
+### `atualizado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora da última atualização dos dados do Colaborador.
+
+Conceito:
+
+Mantém a auditoria temporal das alterações realizadas no cadastro.
+
+---
+
+### `atualizado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela última atualização dos dados do Colaborador.
+
+Conceito:
+
+Permite identificar quem realizou a alteração mais recente no cadastro.
+
+---
+
+### Informações que não pertencem ao documento do Colaborador
+
+Durante a revisão foi reafirmado que algumas informações relacionadas ao profissional pertencem a outros domínios e não devem ser incorporadas diretamente ao documento `colaboradores`.
+
+Conceitualmente:
+
+`colaboradores`
+→ quem é o profissional, onde atua e quais Serviços pode executar.
+
+`disponibilidade_colaborador`
+→ períodos em que normalmente está disponível para trabalhar.
+
+`eventos_forca_trabalho`
+→ ausências, bloqueios e demais exceções à disponibilidade.
+
+`colaborador_servico_config`
+→ exceções de tempo e comissão para Serviços específicos.
+
+`atendimentos`
+→ fatos operacionais efetivamente realizados pelo Colaborador.
+
+Essa separação evita transformar `colaboradores` em um documento concentrador de regras e fatos operacionais.
+
+---
+
+### Evolução do modelo
+
+A collection `colaboradores` representa a evolução dos antigos conceitos de profissionais/prestadores existentes nas primeiras versões do modelo.
+
+Os conceitos anteriores foram consolidados em uma única entidade operacional.
+
+O Colaborador:
+
+- pertence a um Estabelecimento;
+- pode ou não possuir usuário no MotionLab;
+- possui Serviços para os quais está habilitado;
+- pode ser desativado preservando seu histórico;
+- participa dos demais domínios por meio de referências.
+
+---
+
+### Decisão final
+
+A collection `colaboradores` foi considerada higienizada para o MVP.
+
+Não foram identificados novos campos necessários nesta etapa.
+
+Foi mantido deliberadamente um modelo simples:
+
+1 Colaborador
+→ 1 Estabelecimento.
+
+A possibilidade de uma mesma pessoa possuir atuação compartilhada entre vários Estabelecimentos não será modelada antecipadamente.
+
+Caso a utilização real do MotionLab demonstre essa necessidade, o modelo será reavaliado a partir dos requisitos observados nos clientes.
+
+Esse princípio reforça a estratégia adotada durante a higienização do modelo:
+
+> Implementar a complexidade necessária para o MVP e evoluir o modelo quando uma necessidade concreta de negócio justificar essa complexidade.
 
 ### Objetivo
 
