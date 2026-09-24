@@ -1,5 +1,349 @@
 
+## 2026-09-24 — Higienização da collection `convite`
 
+### Objetivo
+
+Revisar a responsabilidade, os campos e as regras da collection `convite`, mantendo o modelo simples para o MVP e garantindo a rastreabilidade do processo de ingresso de usuários no MotionLab.
+
+### Responsabilidade da collection
+
+Foi definida a seguinte responsabilidade para `convite`:
+
+> Registra os convites emitidos para permitir o ingresso de usuários em uma Rede ou Estabelecimento do MotionLab, definindo o papel e o contexto de acesso concedido.
+
+A collection representa o processo de ingresso e vinculação.
+
+Depois da utilização do convite, o vínculo efetivo do usuário com a Rede, o Estabelecimento e seu papel passa a ser representado pelo cadastro do usuário.
+
+### Estrutura revisada
+
+A collection permanece com os seguintes campos:
+
+- `codigo` — String
+- `role` — String
+- `usado` — Boolean
+- `criado_em` — DateTime
+- `rede_ref` — Document Reference → `redes_franquias`
+- `estabelecimento_ref` — Document Reference → `estabelecimentos`
+- `expira_em` — DateTime
+- `usado_por_ref` — Document Reference → `users`
+- `usado_em` — DateTime
+- `criado_por_ref` — Document Reference → `users`
+
+---
+
+### `codigo`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Código utilizado para identificar e validar o convite durante o ingresso do usuário no MotionLab.
+
+Conceito:
+
+O código identifica o convite durante o processo de ingresso.
+
+Deve ser gerado pelo sistema, e não escolhido livremente pelo usuário.
+
+Conceitualmente:
+
+`codigo`
+→ localiza o convite
+→ permite verificar sua validade
+→ permite verificar se já foi utilizado
+→ identifica o contexto de acesso concedido.
+
+Deve-se evitar a existência simultânea de dois convites válidos com o mesmo código.
+
+---
+
+### `role`
+
+Tipo:
+
+`String`
+
+Descrição atribuída ao campo:
+
+> Papel que será atribuído ao usuário quando o convite for utilizado.
+
+Conceito:
+
+O papel não é escolhido livremente pela pessoa que recebe o convite.
+
+Ele é definido no momento da emissão e determina qual papel será atribuído ao usuário quando o convite for utilizado com sucesso.
+
+#### Domínio de `role`
+
+Foi definido que `convite.role` e `users.role` utilizarão o mesmo domínio de valores.
+
+Conceitualmente:
+
+DOMÍNIO DE ROLE
+├── `users.role`
+└── `convite.role`
+
+Não existirão duas listas independentes de papéis.
+
+O domínio será definido e controlado no código da aplicação por uma lista comum aos dois campos.
+
+Decisão:
+
+- `users.role` permanece `String`;
+- `convite.role` permanece `String`;
+- os valores válidos serão centralizados no código;
+- os dois campos utilizarão a mesma lista;
+- não será criada uma collection Firestore destinada ao domínio de `role`.
+
+A antiga collection `role` permanece classificada como legado.
+
+Essa decisão reduz complexidade no Firestore e evita divergência entre o papel concedido pelo convite e o papel posteriormente registrado no usuário.
+
+---
+
+### `usado`
+
+Tipo:
+
+`Boolean`
+
+Descrição atribuída ao campo:
+
+> Indica se o convite já foi utilizado.
+
+Conceito:
+
+Enquanto o convite estiver disponível para utilização:
+
+`usado = false`
+
+Depois que o processo de utilização for concluído com sucesso:
+
+`usado = true`
+
+Esse controle impede a reutilização do mesmo convite.
+
+---
+
+### `criado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o convite foi criado.
+
+Conceito:
+
+Registra o momento da emissão do convite.
+
+Não deve ser confundido com `usado_em`, que registra o momento em que o convite foi efetivamente consumido.
+
+---
+
+### `rede_ref`
+
+Tipo:
+
+`Document Reference → redes_franquias`
+
+Descrição atribuída ao campo:
+
+> Rede à qual pertence o convite.
+
+Conceito:
+
+Define o contexto de tenant do convite.
+
+Mesmo quando o convite estiver relacionado a um Estabelecimento específico, a Rede à qual aquele acesso pertence permanece explicitamente identificada.
+
+---
+
+### `estabelecimento_ref`
+
+Tipo:
+
+`Document Reference → estabelecimentos`
+
+Descrição atribuída ao campo:
+
+> Estabelecimento ao qual o usuário será vinculado quando o convite exigir vínculo com uma unidade específica.
+
+Conceito:
+
+O campo pode ser opcional dependendo do papel concedido.
+
+Quando o acesso estiver relacionado a uma unidade específica, o convite referencia o respectivo Estabelecimento.
+
+Quando o papel possuir abrangência de Rede e não exigir vínculo com uma unidade específica, esse campo poderá permanecer vazio.
+
+---
+
+### `expira_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora limite para utilização do convite.
+
+Conceito:
+
+Um convite não utilizado não permanece necessariamente válido indefinidamente.
+
+A validade conceitual do convite considera:
+
+- existência de um código válido;
+- `usado = false`;
+- prazo de expiração ainda não atingido.
+
+Conceitualmente:
+
+convite válido
+= código válido
++ não utilizado
++ não expirado.
+
+---
+
+### `usado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário que utilizou o convite.
+
+Conceito:
+
+É preenchido quando o convite é efetivamente utilizado.
+
+Permite identificar qual usuário consumiu aquele convite.
+
+---
+
+### `usado_em`
+
+Tipo:
+
+`DateTime`
+
+Descrição atribuída ao campo:
+
+> Data e hora em que o convite foi utilizado.
+
+Conceito:
+
+Registra o momento em que ocorreu o consumo do convite.
+
+Trabalha em conjunto com:
+
+- `usado`;
+- `usado_por_ref`.
+
+Após a utilização bem-sucedida:
+
+`usado = true`
+
+`usado_em = momento da utilização`
+
+`usado_por_ref = usuário que utilizou o convite`
+
+---
+
+### `criado_por_ref`
+
+Tipo:
+
+`Document Reference → users`
+
+Descrição atribuída ao campo:
+
+> Usuário responsável pela criação do convite.
+
+Conceito:
+
+Registra quem iniciou a concessão daquele acesso.
+
+O campo é importante para a auditoria do processo de ingresso e concessão de permissões.
+
+---
+
+### Jornada conceitual do convite
+
+O fluxo conceitual ficou definido como:
+
+Usuário autorizado cria o convite
+↓
+o sistema define:
+- `codigo`;
+- `role`;
+- `rede_ref`;
+- `estabelecimento_ref`, quando aplicável;
+- `criado_em`;
+- `criado_por_ref`;
+- `expira_em`.
+
+A pessoa utiliza o código
+↓
+MotionLab verifica:
+- o código existe?
+- o convite ainda não foi utilizado?
+- o convite ainda não expirou?
+
+Se válido:
+↓
+o usuário recebe o vínculo e o papel previstos no convite
+↓
+o convite registra:
+- `usado = true`;
+- `usado_em`;
+- `usado_por_ref`.
+
+---
+
+### Auditoria
+
+Foi analisada a possibilidade de acrescentar os campos genéricos:
+
+- `atualizado_em`;
+- `atualizado_por_ref`.
+
+Neste momento eles não foram adicionados.
+
+O convite possui um ciclo de vida específico e sua principal transição já é registrada explicitamente por:
+
+- `usado`;
+- `usado_em`;
+- `usado_por_ref`.
+
+Além disso, sua emissão já é registrada por:
+
+- `criado_em`;
+- `criado_por_ref`.
+
+Para o MVP, esses campos fornecem a rastreabilidade necessária sem acrescentar auditoria genérica redundante.
+
+---
+
+### Decisão final
+
+A estrutura atual da collection `convite` foi considerada suficiente para o MVP.
+
+Nenhum campo estrutural existente precisou ser removido e nenhum novo campo foi considerado necessário nesta etapa.
+
+A principal decisão arquitetural adicional foi centralizar no código o domínio de valores de `role`, compartilhado por `convite.role` e `users.role`.
+
+A collection `convite` fica responsável exclusivamente pelo processo de concessão e consumo do convite, enquanto o cadastro do usuário representa o vínculo efetivo resultante desse processo.
 ## 2026-09-23 — Higienização da collection `movimentacao_estoque`
 
 ### Objetivo
