@@ -1,3 +1,312 @@
+## 2026-09-26 — Consolidação do modelo de dados v0.2.0
+
+### Contexto
+
+Após a conclusão do segundo ciclo de revisão e higienização das 15 Collections atualmente existentes no MotionLab, foi iniciada a atualização do documento:
+
+`saas/docs/5. architecture/modelo-de-dados.md`
+
+A versão anterior, `0.1.0`, havia sido construída antes das diversas decisões tomadas durante a higienização e ainda representava parte do modelo como planejamento de ajustes, remodelagens e substituições.
+
+Com a conclusão desse ciclo, tornou-se necessário consolidar no documento de arquitetura a nova baseline efetivamente definida.
+
+---
+
+### Pergunta / Observação
+
+Durante a atualização inicialmente tentamos revisar o documento seção por seção.
+
+Ao visualizar o resultado parcial foi identificado que essa abordagem estava misturando trechos antigos e novos e aumentando o risco de perda da estrutura do documento.
+
+Também foi observado que o `modelo-de-dados.md` havia alcançado aproximadamente 1431 linhas.
+
+Diante do tamanho do documento, foi levantada a seguinte observação:
+
+> Seria melhor apresentar a versão final de modelo-de-dados.md completa e não seção a seção, para evitar perder a estrutura.
+
+E posteriormente:
+
+> Foram construídas 1431 linhas; levaríamos um tempo considerável para fazer seção a seção.
+
+---
+
+### Discussão
+
+Foi reconhecido que a atualização incremental de um documento arquitetural desse tamanho apresentava dois problemas principais:
+
+1. elevado tempo para revisão e substituição de cada seção;
+2. risco de permanecerem misturados conceitos da versão anterior com decisões da nova baseline.
+
+O documento `0.1.0` ainda continha, por exemplo, o antigo plano de higienização com classificações como:
+
+- `AJUSTAR`;
+- `REMODELAR`;
+- `LEGADO`.
+
+Essas classificações foram importantes durante o processo de revisão, mas já não representam corretamente o estado atual do modelo.
+
+Também existem conceitos definidos anteriormente que continuam válidos, mas ainda não foram materializados no Firestore.
+
+Esses conceitos não devem ser descartados, mas precisam aparecer claramente identificados como estruturas conceituais ou futuras.
+
+---
+
+### Decisão
+
+Foi decidido substituir a construção seção a seção por uma consolidação integral do `modelo-de-dados.md`.
+
+A nova versão foi definida como:
+
+```text
+Versão: 0.2.0
+Status: Baseline do MVP em evolução
+
+Sim. Antes do commit falta registrar **o trabalho de hoje no `FLUXOTRABALHO.md`**.
+
+Eu colocaria ao final do arquivo:
+
+```markdown
+## 2026-09-26 — Consolidação do modelo de dados v0.2.0
+
+### Contexto
+
+Após a conclusão do segundo ciclo de revisão e higienização das 15 Collections atualmente existentes no MotionLab, foi iniciada a atualização do documento:
+
+`saas/docs/5. architecture/modelo-de-dados.md`
+
+A versão anterior, `0.1.0`, havia sido construída antes das diversas decisões tomadas durante a higienização e ainda representava parte do modelo como planejamento de ajustes, remodelagens e substituições.
+
+Com a conclusão desse ciclo, tornou-se necessário consolidar no documento de arquitetura a nova baseline efetivamente definida.
+
+---
+
+### Pergunta / Observação
+
+Durante a atualização inicialmente tentamos revisar o documento seção por seção.
+
+Ao visualizar o resultado parcial foi identificado que essa abordagem estava misturando trechos antigos e novos e aumentando o risco de perda da estrutura do documento.
+
+Também foi observado que o `modelo-de-dados.md` havia alcançado aproximadamente 1431 linhas.
+
+Diante do tamanho do documento, foi levantada a seguinte observação:
+
+> Seria melhor apresentar a versão final de modelo-de-dados.md completa e não seção a seção, para evitar perder a estrutura.
+
+E posteriormente:
+
+> Foram construídas 1431 linhas; levaríamos um tempo considerável para fazer seção a seção.
+
+---
+
+### Discussão
+
+Foi reconhecido que a atualização incremental de um documento arquitetural desse tamanho apresentava dois problemas principais:
+
+1. elevado tempo para revisão e substituição de cada seção;
+2. risco de permanecerem misturados conceitos da versão anterior com decisões da nova baseline.
+
+O documento `0.1.0` ainda continha, por exemplo, o antigo plano de higienização com classificações como:
+
+- `AJUSTAR`;
+- `REMODELAR`;
+- `LEGADO`.
+
+Essas classificações foram importantes durante o processo de revisão, mas já não representam corretamente o estado atual do modelo.
+
+Também existem conceitos definidos anteriormente que continuam válidos, mas ainda não foram materializados no Firestore.
+
+Esses conceitos não devem ser descartados, mas precisam aparecer claramente identificados como estruturas conceituais ou futuras.
+
+---
+
+### Decisão
+
+Foi decidido substituir a construção seção a seção por uma consolidação integral do `modelo-de-dados.md`.
+
+A nova versão foi definida como:
+
+```text
+Versão: 0.2.0
+Status: Baseline do MVP em evolução
+```
+
+O documento passa a representar a baseline resultante do segundo ciclo de revisão das Collections.
+
+Foi mantido explicitamente o princípio de que essa baseline não representa um modelo congelado.
+
+A implementação das jornadas poderá revelar novos fatos de negócio e exigir novos campos, relacionamentos ou Collections.
+
+Permanece como princípio:
+
+> Primeiro compreender o fato de negócio e a informação necessária; depois decidir como persistir.
+
+E também:
+
+> Não criar complexidade antecipadamente, mas também não comprimir fatos de negócio diferentes em uma única estrutura apenas para evitar a evolução do modelo.
+
+---
+
+### Baseline consolidada
+
+A versão `0.2.0` passa a documentar as 15 Collections atualmente existentes:
+
+```text
+users
+servicos
+agendamentos
+planos_assinatura
+assinaturas_saas
+produtos
+movimentacao_estoque
+fluxo_caixa
+convite
+redes_franquias
+estabelecimentos
+colaboradores
+clientes
+categorias_financeiras
+atendimentos
+```
+
+Foram consolidadas no documento as decisões tomadas durante o ciclo de higienização, incluindo:
+
+- estrutura Rede → Matriz → Filiais;
+- separação entre usuário e Colaborador;
+- Serviços e regras padrão;
+- Clientes pertencentes à Rede;
+- separação entre Agendamento e Atendimento;
+- snapshots históricos dos itens do Atendimento;
+- Produtos de revenda e consumo operacional;
+- Movimentações de estoque como fatos que alteram o saldo;
+- separação entre fato operacional e fato financeiro;
+- Categorias Financeiras;
+- Fluxo de Caixa;
+- Planos e Assinaturas SaaS;
+- Convites;
+- princípios de auditoria;
+- desativação lógica;
+- preservação histórica;
+- estratégia de agregação dos dashboards;
+- isolamento multi-tenant e autorização.
+
+---
+
+### Estruturas conceituais preservadas
+
+Estruturas já discutidas, mas ainda não materializadas, permanecem documentadas explicitamente como conceituais.
+
+Entre elas:
+
+```text
+colaborador_servico_config
+disponibilidade_colaborador
+eventos_forca_trabalho
+tipos_evento_forca_trabalho
+agregados_filial_diario
+caixa físico / sessão de caixa
+compras / recebimentos / obrigações / pagamentos
+```
+
+A presença dessas estruturas na documentação não significa que tenham sido implementadas.
+
+Elas representam decisões ou necessidades identificadas que deverão ser revisitadas quando suas respectivas jornadas forem construídas.
+
+---
+
+### Segurança incorporada ao modelo
+
+A versão `0.2.0` também incorpora a decisão tomada após o deploy da baseline:
+
+> Autenticação responde quem é o usuário. Autorização determina o que esse usuário pode fazer e sobre quais dados.
+
+A segurança passa a acompanhar a implementação das jornadas.
+
+O critério estabelecido permanece:
+
+```text
+Funcionalidade
++
+Persistência
++
+Autorização
++
+Isolamento multi-tenant testado
+=
+Jornada concluída
+```
+
+---
+
+### Collections legadas
+
+O histórico das estruturas anteriores não foi simplesmente descartado.
+
+A nova versão registra as principais Collections legadas e suas evoluções conceituais.
+
+Entre as principais transições:
+
+```text
+barbearias
+→ estabelecimento_id
+→ estabelecimento
+→ estabelecimentos
+```
+
+```text
+profissional / prestadores
+→ colaboradores
+```
+
+```text
+assinaturas_clientes
+→ assinaturas_saas
+```
+
+```text
+produtos_estoque
+→ produtos + movimentacao_estoque
+```
+
+```text
+reservas_atendimentos
+→ agendamentos + atendimentos
+```
+
+A remoção física de estruturas legadas continua condicionada à inexistência de dependências necessárias no FlutterFlow e à avaliação de eventual necessidade de migração de dados.
+
+---
+
+### Consequência
+
+O `modelo-de-dados.md` deixa de funcionar principalmente como plano de higienização e passa a representar a baseline arquitetural atual do MotionLab.
+
+A partir desta versão, a evolução do modelo deverá acompanhar as jornadas:
+
+```text
+Compreender o fato de negócio
+        ↓
+Identificar as informações necessárias
+        ↓
+Verificar se a baseline suporta a jornada
+        ↓
+Evoluir o modelo quando necessário
+        ↓
+Implementar
+        ↓
+Validar persistência
+        ↓
+Implementar autorização
+        ↓
+Testar isolamento multi-tenant
+        ↓
+Jornada concluída
+```
+
+A próxima atividade documental é realizar uma revisão de consistência da versão `0.2.0` completa antes de considerá-la encerrada e realizar o commit.
+```
+
+
+
 ## 2026-09-24 — Deploy do modelo e segurança como critério de conclusão das jornadas
 
 ### Contexto
