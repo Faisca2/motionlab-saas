@@ -1,3 +1,611 @@
+## 2026-09-27 — Revisão do modelo de dados: SaaS, financeiro e início de Produtos/Estoque
+
+### Continuação da revisão do `modelo-de-dados.md v0.2.0`
+
+A revisão do modelo continuou no sentido inverso das seções, partindo da Seção 11 e avançando até o início da Seção 9.
+
+---
+
+### Seção 11 — SaaS e Assinaturas
+
+Foi esclarecida uma ambiguidade de terminologia que vinha causando confusão durante a análise.
+
+No contexto do MotionLab:
+
+~~~text
+Cliente
+→ pessoa atendida pela Matriz ou Filial
+
+Rede contratante
+→ organização que contrata o SaaS MotionLab
+
+MotionLab
+→ fornecedor do SaaS
+~~~
+
+A Seção 11 trata exclusivamente da relação comercial entre a MotionLab e a Rede contratante.
+
+Planos, mensalidades ou contratos recorrentes entre os Estabelecimentos e seus Clientes não fazem parte do escopo atual.
+
+#### Vigência e cancelamento
+
+Foi estabelecido que o cancelamento de uma renovação futura não deve interromper antecipadamente uma vigência já adquirida.
+
+Exemplo:
+
+~~~text
+assinatura válida até 31/10
+        ↓
+cancelamento da renovação em 15/10
+        ↓
+não haverá renovação posterior
+        ↓
+acesso permanece até o final da vigência
+~~~
+
+Renovação futura e direito de utilização durante a vigência são fatos diferentes.
+
+#### Tolerância financeira
+
+Foi discutida a possibilidade de uma política de tolerância para inadimplência da Rede contratante.
+
+A decisão conceitual foi permitir degradação progressiva do acesso:
+
+~~~text
+VIGÊNCIA NORMAL
+→ acesso integral
+
+TOLERÂNCIA PARCIAL
+→ operação essencial continua
+→ Agendamentos continuam
+→ Atendimentos continuam
+→ funcionalidades administrativas não essenciais podem ser restringidas
+→ Dashboards poderão ser bloqueados
+
+SUSPENSÃO
+→ operação normal suspensa
+→ permanece acesso mínimo para identificação
+  da situação e regularização da assinatura
+~~~
+
+A política de tolerância deverá ser uma política objetiva da MotionLab e não uma concessão informal individual.
+
+Durante a discussão foi observado:
+
+> “Estes gera insatisfação e falta de seriedade para os privilegiados e não privilegiados.”
+
+A conclusão foi que Redes submetidas às mesmas condições comerciais devem seguir regras previsíveis de vigência, tolerância, restrição e suspensão.
+
+Não foram definidos neste momento prazo de tolerância, novos campos ou matriz definitiva de funcionalidades bloqueadas.
+
+A persistência será evoluída quando a jornada de assinatura e cobrança demonstrar necessidade concreta.
+
+---
+
+### Seção 10 — Financeiro
+
+A revisão da Seção 10 revelou algumas fronteiras importantes entre fatos operacionais, financeiros e futuros processos especializados.
+
+#### Estorno e devolução
+
+Ao avaliar se `fluxo_caixa.natureza` deveria receber simplesmente um novo valor para estorno, foi observado:
+
+> “Estorno e devolução implicam em vários pontos estorno preciso registrar motivo se o produto retornou ao estoque se foi para descarte se a comissão será estornada é um processo complexo.”
+
+Também foi observado que o momento do estorno poderá influenciar a possibilidade de reversão de taxas.
+
+A conclusão foi que estorno/devolução não deve ser tratado simplesmente como mais um tipo de movimentação financeira.
+
+Trata-se de uma jornada transversal que poderá produzir efeitos em:
+
+~~~text
+financeiro
+estoque
+taxas
+comissões
+atendimento/venda
+~~~
+
+Nem todos os efeitos da operação original serão necessariamente reversíveis.
+
+Foi criada conceitualmente a seção:
+
+~~~text
+10.6 Estorno e devoluções — EVOLUÇÃO FUTURA
+~~~
+
+A jornada é considerada necessária ao MotionLab, mas sua modelagem não será antecipada na baseline atual.
+
+O fato original deverá ser preservado e os efeitos posteriores registrados quando a jornada for implementada.
+
+---
+
+### Liquidação e meios de pagamento
+
+Foi analisada a diferença entre o pagamento realizado pelo Cliente e a efetiva disponibilidade do dinheiro para o Estabelecimento.
+
+Foi estabelecido que, no contexto de um Atendimento, a liquidação representa a satisfação da obrigação do Cliente pelo meio de pagamento aceito.
+
+Exemplo com cartão:
+
+~~~text
+Atendimento
+        ↓
+Cliente realiza pagamento no cartão
+        ↓
+obrigação do Cliente liquidada
+        ↓
+surge recebível contra a operadora
+        ↓
+crédito efetivo poderá ocorrer posteriormente
+~~~
+
+Portanto:
+
+> Liquidação da obrigação do Cliente não significa necessariamente que o dinheiro já esteja disponível na conta bancária do Estabelecimento.
+
+---
+
+### Fechamento da operação
+
+Foi observado que o fechamento não pode ser entendido apenas como contagem do caixa físico.
+
+O fechamento deverá confrontar os Atendimentos realizados com os meios de pagamento efetivamente realizados e suas evidências.
+
+Assim, uma operação de cartão pode estar corretamente realizada no fechamento mesmo que o valor ainda não tenha sido creditado pela operadora.
+
+Foi estabelecida a distinção:
+
+~~~text
+FECHAMENTO
+→ confere aquilo que ocorreu na operação
+
+CONCILIAÇÃO DE RECEBÍVEIS
+→ verifica posteriormente se valores devidos
+  por intermediadores foram efetivamente recebidos
+~~~
+
+Um recebível ainda não creditado não representa diferença no fechamento da operação.
+
+---
+
+### Caixa físico, sangria e entradas de numerário
+
+Foi observado:
+
+> “As sangrias e entradas de valores sem um pagamento precisa ter um documento para que o caixa faça o fechamento sem diferença.”
+
+A partir disso foi estabelecido o princípio:
+
+> Toda movimentação de numerário que altere o saldo físico do caixa sem decorrer diretamente de um pagamento ou recebimento deverá possuir registro próprio que justifique sua origem, destino, valor e responsabilidade, permitindo a apuração objetiva de diferenças no fechamento.
+
+Conceitualmente:
+
+~~~text
+Saldo inicial
++ recebimentos em dinheiro
++ entradas documentadas
+- sangrias documentadas
+= saldo físico esperado
+
+saldo contado
+- saldo físico esperado
+= diferença de caixa
+~~~
+
+Sangria não deve ser artificialmente transformada em despesa apenas para fazer o fechamento financeiro coincidir.
+
+---
+
+### Recebíveis e conciliação
+
+Foi considerada uma possível futura jornada de contas a receber e conciliação.
+
+Entretanto foi observado:
+
+> “Entendo que não é necessário até porque recebíveis é um processo bem complexo pois a maioria dos empresários fazem antecipação de seus recebíveis.”
+
+A antecipação de recebíveis introduziria questões como:
+
+~~~text
+recebíveis futuros
+antecipação
+taxas
+agrupamentos
+divergências
+crédito efetivo
+conciliação
+~~~
+
+Foi decidido não aprofundar essa jornada no escopo atual.
+
+O MotionLab deverá, no MVP, reconhecer corretamente o meio de pagamento realizado e permitir o fechamento da operação sem assumir que o controle completo de recebíveis faça parte da baseline.
+
+Recebíveis, conciliação e antecipação permanecem fora do escopo atual.
+
+---
+
+### Resultado da revisão da Seção 10
+
+A Seção 10 ficou conceitualmente organizada em:
+
+~~~text
+10.1 Categorias financeiras
+10.2 Fluxo de caixa
+10.3 Operacional x financeiro
+10.4 Caixa físico — CONCEITUAL
+10.5 Compra, obrigação e pagamento — EVOLUÇÃO FUTURA
+10.6 Estorno e devoluções — EVOLUÇÃO FUTURA
+~~~
+
+A revisão preservou o princípio de não antecipar Collections ou campos antes da compreensão das respectivas jornadas.
+
+---
+
+### Início da Seção 9 — Produtos e Estoque
+
+A revisão da Seção 9 foi iniciada.
+
+A estrutura atual mantém:
+
+~~~text
+produtos
+→ cadastro, parâmetros atuais e saldo atual
+
+movimentacao_estoque
+→ fatos que alteram o saldo
+~~~
+
+Foi identificado o primeiro ponto a ser discutido na próxima retomada:
+
+Atualmente cada Produto pertence a um Estabelecimento.
+
+Isso significa que Matriz e Filiais possuem documentos próprios mesmo quando comercializam ou utilizam o mesmo produto.
+
+A próxima análise deverá responder:
+
+> O cadastro de Produtos deve continuar pertencendo individualmente a cada Estabelecimento ou a Matriz deverá poder manter um catálogo comum, enquanto cada Estabelecimento controla seu próprio estoque e eventualmente seus próprios parâmetros comerciais?
+
+Nenhuma alteração foi decidida ainda sobre esse ponto.
+
+### Ponto de retomada
+
+Retomar em:
+
+**Seção 9.1 — `produtos`: propriedade do cadastro do Produto versus controle do estoque por Estabelecimento.**
+
+
+Sim. Para o `FLUXOTRABALHO.md`, eu preservaria inclusive suas perguntas e afirmações, porque elas mostram **como a decisão foi construída**, e não apenas seu resultado.
+
+Segue um único bloco pronto para copiar:
+
+```markdown
+## 2026-09-27 — Revisão do modelo de dados v0.2.0 — Jornada concluída, homologação, regressão e evolução do processo de software
+
+### Contexto
+
+Durante a revisão da Seção 18 — Próxima etapa do `modelo-de-dados.md` v0.2.0, foi analisado o significado de **Jornada concluída** e sua relação com a futura liberação do MVP do MotionLab para produção.
+
+O modelo já estabelecia como critério:
+
+```text
+Funcionalidade
++
+Persistência
++
+Autorização
++
+Isolamento multi-tenant testado
+=
+Jornada concluída
+```
+
+A discussão mostrou que esse critério é adequado para determinar a conclusão de uma jornada, mas não deve ser confundido com a homologação final do produto para entrada em produção.
+
+### Observação — Jornada concluída não significa MVP pronto para produção
+
+Foi feita a seguinte observação:
+
+> "Uma vez que a jornada cumpriu as etapas declaradas, jornada concluída. Porém o MotionLab MVP pronto para produção terá uma homologação completa, validando as questões negociais e de segurança interna e externa."
+
+A partir dessa observação foi estabelecida uma segunda camada de validação.
+
+Cada jornada é responsável por garantir progressivamente sua funcionalidade, persistência, autorização e isolamento multi-tenant.
+
+Entretanto, depois que todas as jornadas previstas para o MVP estiverem concluídas, o produto ainda deverá passar por uma **homologação integrada para produção**, considerando o funcionamento do sistema em seu conjunto.
+
+Conceitualmente:
+
+```text
+Jornadas individualmente concluídas
+        ↓
+MVP funcionalmente completo
+        ↓
+Homologação integrada
+        ↓
+Validação negocial
++
+Segurança interna
++
+Segurança externa
+        ↓
+MVP apto para produção
+```
+
+### Pergunta — Até onde podemos automatizar a homologação?
+
+Durante a discussão surgiu a questão:
+
+> "Estas ações de teste para homologar é possível automatizar ao ponto que ao fazer uma implementação corretiva submeta todo o processo para garantir a estabilidade do produto?"
+
+A resposta levou ao conceito de construção progressiva de uma suíte de regressão.
+
+Cada jornada pode produzir cenários de teste que, depois de homologados e estabilizados, deixam de representar apenas o teste daquela implementação e passam a constituir uma proteção permanente do produto.
+
+Uma alteração futura poderá executar novamente esses cenários para verificar se comportamentos anteriormente validados continuam funcionando.
+
+Entretanto, a discussão também mostrou que seria impreciso afirmar que toda a suíte estaria sendo novamente "homologada" a cada alteração.
+
+### Observação — Testes estruturados tornam a homologação mais eficiente
+
+Foi feita então a observação:
+
+> "Entendo, porém os testes bem estruturados produzem uma homologação mais leve e eficiente."
+
+A conclusão foi que a automação não elimina a homologação.
+
+Ela reduz a necessidade de repetir manualmente verificações de comportamentos que já foram homologados anteriormente.
+
+A homologação pode então concentrar esforço no incremento e nos aspectos integrados ou excepcionais que realmente precisam de nova validação.
+
+### Distinção entre homologação e regressão
+
+A distinção ficou mais clara com a seguinte observação:
+
+> "Normalmente em um produto estável que sofre um incremento, seja corretivo ou de melhoria, temos os critérios de aceitação e os cenários de testes necessários. Estes serão homologados, mas os cenários de testes legados são apenas executados para garantir que não houve danos colaterais."
+
+Essa observação levou à definição de dois conjuntos de testes com objetivos diferentes.
+
+#### Homologação do incremento
+
+Uma correção ou evolução deverá possuir:
+
+- critérios de aceitação;
+- cenários de teste relacionados ao incremento;
+- execução desses cenários;
+- validação dos novos comportamentos ou comportamentos corrigidos.
+
+Esses cenários constituem o escopo da homologação do incremento.
+
+#### Regressão
+
+Os cenários de funcionalidades anteriormente homologadas passam a integrar a suíte de regressão.
+
+Sua execução não representa uma nova homologação dessas funcionalidades.
+
+Seu objetivo é verificar se o novo incremento provocou danos colaterais no comportamento já estabilizado do produto.
+
+Conceitualmente:
+
+```text
+Incremento corretivo ou evolutivo
+        ↓
+Critérios de aceitação
+        ↓
+Cenários relacionados ao incremento
+        ↓
+Homologação do incremento
+        +
+Execução dos cenários legados
+        ↓
+Regressão
+        ↓
+Verificação de danos colaterais
+        ↓
+Incremento apto para liberação
+```
+
+Sempre que adequado, os cenários de regressão deverão ser automatizados.
+
+Quando uma nova funcionalidade estiver estabilizada, seus cenários relevantes deverão passar a integrar essa suíte, aumentando progressivamente a proteção do produto.
+
+### Observação — "Testar bastante" não significa cobertura
+
+Durante a consolidação desse conceito foi feita outra observação:
+
+> "Exato, testar bastante é relativo e não reporta: está tudo coberto."
+
+Essa afirmação reforçou a necessidade de abandonar uma avaliação subjetiva baseada apenas na quantidade de testes executados.
+
+"Testar bastante" mede esforço, mas não demonstra quais comportamentos foram efetivamente verificados.
+
+O processo precisa permitir rastreabilidade entre:
+
+```text
+Requisito / comportamento esperado
+        ↓
+Critério de aceitação
+        ↓
+Cenário de teste
+        ↓
+Resultado
+```
+
+Isso também não significa afirmar que todo defeito possível de um sistema estará coberto.
+
+Significa tornar explícitos os comportamentos e riscos que foram identificados, os cenários utilizados para verificá-los e seus respectivos resultados.
+
+### Reflexão — Evolução dos processos de desenvolvimento
+
+A discussão técnica levou a uma reflexão baseada na experiência profissional acumulada ao longo de diferentes processos de desenvolvimento.
+
+Foi observado:
+
+> "Eu passei por diferentes processos e evoluí com eles, mas tenho visto alguns colegas que tratam os novos processos como improdutivos e que os líderes não se importam com os prazos."
+
+A percepção discutida foi que práticas modernas podem inicialmente parecer redução de produtividade quando produtividade é medida principalmente pela quantidade de implementação produzida ou pelo tempo necessário para concluir a codificação.
+
+Critérios de aceitação, revisão, testes automatizados, segurança, documentação, integração contínua e regressão acrescentam atividades ao ciclo de desenvolvimento.
+
+Entretanto, avaliar somente o tempo necessário para produzir o código não representa necessariamente o custo completo de produção e manutenção do software.
+
+Uma implementação entregue rapidamente pode posteriormente consumir capacidade significativa em:
+
+```text
+Entrega
+   ↓
+Defeitos
+   ↓
+Correções
+   ↓
+Regressões
+   ↓
+Novas correções
+   ↓
+Aumento do custo de manutenção
+```
+
+Por outro lado, também foi reconhecido que processos modernos não devem ser transformados em burocracia.
+
+Uma atividade deve possuir propósito e contribuir para redução de risco, incerteza, retrabalho ou custo futuro.
+
+### Reflexão — Engenharia de Software e manutenção corretiva
+
+Foi registrada ainda a seguinte observação:
+
+> "A engenharia de software alimentou uma estatística de projetos que não terminavam e outros de baixa qualidade com um nível de manutenção corretiva assustadora, criando até um descrédito à disciplina."
+
+A discussão reconheceu que a evolução da Engenharia de Software ocorreu também como resposta a problemas recorrentes observados ao longo do desenvolvimento de sistemas: projetos difíceis de concluir, baixa previsibilidade, defeitos identificados tardiamente, regressões e elevado custo de manutenção.
+
+Também foi reconhecido que esses problemas não podem ser atribuídos a uma única causa.
+
+Requisitos, estimativas, arquitetura, complexidade, comunicação, governança, tecnologia, processo e decisões organizacionais podem contribuir para o resultado de um projeto.
+
+O ponto relevante para o MotionLab é compreender que qualidade não deve ser tratada apenas como uma atividade realizada depois da implementação.
+
+### Observação — A evolução dos processos não é apenas modismo
+
+A reflexão foi sintetizada pela afirmação:
+
+> "O que estou registrando é a evolução dos processos, não é apenas um modismo. A recuperação da credibilidade da disciplina é prova que a evolução tem sido necessária e saudável."
+
+Esse ponto passou a representar o fundamento da decisão adotada.
+
+As práticas atuais não estão sendo incorporadas ao MotionLab simplesmente por serem consideradas modernas.
+
+Critérios de aceitação, homologação, regressão, automação, segurança progressiva e rastreabilidade são adotados porque respondem a problemas concretos observados historicamente na produção e manutenção de software.
+
+Isso não significa que todo processo novo seja necessariamente adequado nem que práticas anteriores devam ser descartadas simplesmente por serem antigas.
+
+O processo deverá permanecer proporcional ao risco e à necessidade do produto.
+
+### Decisão
+
+O MotionLab passa a distinguir formalmente:
+
+1. **Jornada concluída**  
+   A jornada cumpriu seus critérios de funcionalidade, persistência, autorização e isolamento multi-tenant.
+
+2. **Homologação do incremento**  
+   Valida os critérios de aceitação e os cenários relacionados a uma implementação corretiva ou evolutiva.
+
+3. **Regressão**  
+   Executa cenários de funcionalidades anteriormente homologadas para identificar possíveis danos colaterais provocados pelo incremento.
+
+4. **Homologação do MVP para produção**  
+   Valida de maneira integrada o conjunto do produto antes da liberação inicial, incluindo aspectos negociais e de segurança interna e externa.
+
+Os cenários de funcionalidades estabilizadas deverão progressivamente formar uma suíte de regressão.
+
+Sempre que adequado, essa suíte deverá ser automatizada para permitir sua execução recorrente após alterações no produto.
+
+### Princípio resultante
+
+A discussão consolidou o seguinte entendimento:
+
+> **Produzir software não é apenas concluir sua implementação. É produzir uma solução que possa evoluir de maneira previsível, verificável e sustentável.**
+
+No MotionLab, qualidade deverá ser construída progressivamente durante a implementação das jornadas.
+
+O objetivo não é simplesmente "testar bastante", mas conhecer os comportamentos que precisam ser preservados, definir como serão verificados e manter essa proteção durante a evolução do produto.
+
+Dessa forma, busca-se evitar que a velocidade obtida durante uma implementação seja posteriormente transformada em passivo de manutenção corretiva.
+
+### Consequência para o modelo-de-dados.md
+
+A Seção 18 — Próxima etapa foi complementada com a subseção:
+
+`18.1 Qualidade, homologação e regressão`
+
+e:
+
+`18.1.1 Incrementos corretivos e evolutivos`
+
+A revisão da Seção 18 é considerada concluída.
+        ```
+
+Esse registro ficou mais extenso de propósito: aqui vale preservar não apenas **a decisão**, mas a linha de raciocínio e suas próprias observações, porque elas explicam como o processo de desenvolvimento do MotionLab está amadurecendo.
+## 2026-09-27 — Revisão do modelo de dados v0.2.0 — conclusão da Seção 18
+
+### Contexto
+
+Durante a revisão da Seção 18 — Próxima etapa, foi analisado o significado de "Jornada concluída" e sua relação com a futura liberação do MVP para produção.
+
+O modelo já estabelecia:
+
+Funcionalidade
++
+Persistência
++
+Autorização
++
+Isolamento multi-tenant testado
+=
+Jornada concluída
+
+### Observação
+
+Foi observado que a conclusão individual das jornadas não deve ser confundida com a homologação final do MotionLab para produção.
+
+Mesmo com todas as jornadas previstas para o MVP concluídas, o produto deverá passar por uma homologação completa e integrada, validando questões negociais e de segurança interna e externa.
+
+Também foi discutido que testes bem estruturados durante o desenvolvimento tornam essa homologação final mais leve e eficiente.
+
+### Discussão
+
+Em um produto estabilizado que recebe um incremento corretivo ou evolutivo, existem dois conjuntos de testes com objetivos diferentes.
+
+Os critérios de aceitação e os cenários criados especificamente para o incremento fazem parte da homologação daquele incremento.
+
+Os cenários das funcionalidades anteriormente homologadas não precisam ser novamente homologados. Eles devem ser executados como regressão para garantir que a alteração não provocou danos colaterais nas funcionalidades existentes.
+
+Foi identificado que esses cenários legados são fortes candidatos à automação.
+
+À medida que novas funcionalidades forem estabilizadas, seus cenários relevantes deverão ser incorporados à suíte de regressão.
+
+### Decisão
+
+O MotionLab passa a distinguir explicitamente:
+
+- homologação do incremento;
+- testes de regressão;
+- homologação integrada do MVP para produção.
+
+Cada incremento corretivo ou evolutivo deverá possuir critérios de aceitação e seus respectivos cenários de teste.
+
+Os cenários anteriormente homologados formarão progressivamente uma suíte de regressão, preferencialmente automatizada quando adequado.
+
+Antes da liberação inicial do MVP para produção será realizada uma homologação integrada, incluindo validações negociais e de segurança interna e externa.
+
+### Consequência
+
+A qualidade passa a ser construída progressivamente durante a implementação das jornadas.
+
+Com o crescimento da suíte de regressão, alterações futuras poderão ser submetidas aos testes legados para identificar possíveis danos colaterais, enquanto a homologação ficará concentrada nos critérios e comportamentos introduzidos pelo incremento.
+
+Essa estratégia deverá reduzir o esforço repetitivo de homologação sem reduzir a segurança das liberações e permitirá que a homologação final do MVP seja mais objetiva e eficiente.
+
+
 ## 2026-09-26 — Consolidação do modelo de dados v0.2.0
 
 ### Contexto

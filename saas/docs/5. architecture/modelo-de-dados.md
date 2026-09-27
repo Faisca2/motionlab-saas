@@ -898,7 +898,7 @@ DINHEIRO
 VALE
 ```
 
-`movimentado_em` representa o momento em que o fato financeiro efetivamente ocorreu.
+`movimentado_em` representa o momento em que o fato financeiro efetivamente ocorreu. No contexto de um Atendimento, a liquidação representa o momento em que a obrigação do Cliente é satisfeita pelo meio de pagamento aceito. Quando houver intermediador, como em uma operação com cartão, isso não significa necessariamente que o valor já tenha sido creditado ao Estabelecimento.
 
 `colaborador_ref` identifica, quando aplicável, o Colaborador economicamente relacionado à movimentação.
 
@@ -963,7 +963,15 @@ Abertura de caixa não representa receita.
 
 Sangria não representa necessariamente despesa.
 
+Toda movimentação de numerário que altere o saldo físico do caixa sem decorrer diretamente de um pagamento ou recebimento deverá possuir registro próprio que justifique sua origem, destino, valor e responsabilidade, permitindo a apuração objetiva de diferenças no fechamento.
+
+O fechamento da operação não se limita à conferência do numerário existente no caixa físico.
+O fechamento deverá confrontar os Atendimentos realizados com os respectivos meios de pagamento realizados e suas evidências, permitindo verificar a consistência da operação do período.
+Uma transação realizada por cartão poderá estar corretamente registrada no fechamento mesmo que o valor ainda não tenha sido efetivamente creditado ao Estabelecimento. Nesse caso, a existência de um recebível futuro não representa diferença de caixa.
+O controle posterior de recebíveis, incluindo conciliação, antecipação, taxas e divergências de crédito, não faz parte do escopo atual do MotionLab.
+
 Essas estruturas ainda não fazem parte da baseline materializada.
+
 
 ---
 
@@ -987,7 +995,22 @@ As jornadas correspondentes deverão determinar futuramente as estruturas necess
 
 ---
 
+## 10.6 Estorno e devoluções — EVOLUÇÃO FUTURA
+
+Estorno e devolução constituem uma jornada necessária do MotionLab, porém não integram a baseline atual.
+A jornada deverá preservar o fato original e registrar os efeitos efetivamente produzidos, que poderão envolver aspectos financeiros, estoque, taxas, comissões e outros fatos operacionais.
+A modelagem deverá considerar que nem todos os efeitos da operação original são necessariamente reversíveis. A possibilidade de recuperação de taxas, por exemplo, poderá depender do momento e das condições em que o estorno ocorrer.
+As estruturas necessárias serão definidas quando essa jornada for implementada, evitando antecipar sua complexidade dentro de fluxo_caixa.
+
+---
+
 # 11. SaaS e Assinaturas
+
+As estruturas desta seção tratam exclusivamente da relação comercial entre a MotionLab e a Rede contratante do SaaS.
+
+Neste documento, o termo `Cliente` é reservado à pessoa atendida pelos Estabelecimentos da Rede. A organização que contrata o SaaS MotionLab é denominada `Rede` ou `Rede contratante`.
+
+Planos, mensalidades ou contratos recorrentes entre os Estabelecimentos e seus Clientes não fazem parte do escopo atual.
 
 ## 11.1 planos_assinatura
 
@@ -997,7 +1020,7 @@ Responsabilidade:
 
 Estrutura atual:
 
-```text
+text
 planos_assinatura
 ├── nome                String
 ├── descricao           String
@@ -1008,7 +1031,7 @@ planos_assinatura
 ├── criado_por_ref      Doc Ref → users
 ├── atualizado_em       DateTime
 └── atualizado_por_ref  Doc Ref → users
-```
+
 
 `ativo = false` significa que o plano não está disponível para novas contratações.
 
@@ -1026,7 +1049,7 @@ Responsabilidade:
 
 Estrutura atual:
 
-```text
+text
 assinaturas_saas
 ├── plano_ref                Doc Ref → planos_assinatura
 ├── status                   String
@@ -1038,16 +1061,16 @@ assinaturas_saas
 ├── criado_por_ref           Doc Ref → users
 ├── atualizado_em            DateTime
 └── atualizado_por_ref       Doc Ref → users
-```
+
 
 Valores atualmente definidos de `status`:
 
-```text
+text
 ATIVO
 INATIVO
 EM_ANALISE
 EM_RENOVACAO
-```
+
 
 A Assinatura pertence à Rede.
 
@@ -1055,15 +1078,111 @@ Não pertence individualmente à Matriz ou a uma Filial.
 
 Separação:
 
-```text
+text
 planos_assinatura
 → aquilo que a MotionLab oferece
 
 assinaturas_saas
 → aquilo que determinada Rede contratou
-```
 
-Estados específicos de pagamento ou gateway somente deverão ser acrescentados quando o fluxo correspondente for definido.
+
+A vigência financeira da assinatura e a renovação futura representam conceitos distintos.
+
+O cancelamento de uma renovação não deverá retirar antecipadamente o direito de utilização correspondente a um período cuja vigência financeira ainda esteja válida.
+
+Conceitualmente:
+
+text
+Período contratado com vigência válida
+        ↓
+cancelamento da renovação futura
+        ↓
+não haverá nova renovação
+        ↓
+direito de utilização permanece
+até o encerramento da vigência contratada
+
+
+A implementação da jornada de assinatura deverá determinar se será necessário representar explicitamente a data final de vigência, sem antecipar nesta baseline novos campos antes da definição do respectivo fluxo financeiro.
+
+Estados específicos de pagamento ou do gateway somente deverão ser acrescentados quando o fluxo correspondente for definido.
+
+## 11.3 Tolerância e restrição progressiva de acesso — CONCEITUAL
+
+A MotionLab poderá adotar um período de tolerância quando houver pendência financeira da Rede contratante.
+
+A tolerância não precisa representar acesso integral ao produto.
+
+Conceitualmente, a política poderá possuir três situações de acesso:
+
+text
+VIGÊNCIA NORMAL
+→ situação financeira regular
+→ acesso integral às funcionalidades contratadas
+
+TOLERÂNCIA PARCIAL
+→ existe pendência financeira
+→ período de tolerância ainda não terminou
+→ funcionalidades essenciais à continuidade operacional permanecem disponíveis
+→ funcionalidades administrativas não essenciais poderão ser restringidas
+
+SUSPENSÃO
+→ período de tolerância encerrado sem regularização
+→ operação normal do SaaS é suspensa
+→ permanece acesso suficiente para identificação
+   da situação e regularização da assinatura
+
+
+Durante a tolerância parcial, a política deverá priorizar a continuidade das operações que possam afetar diretamente o funcionamento do Estabelecimento e seus Clientes.
+
+Exemplos conceituais:
+
+text
+Agendamentos
+→ permanecem disponíveis
+
+Atendimentos
+→ permanecem disponíveis
+
+Dashboards
+→ poderão ser temporariamente restringidos
+
+
+A relação definitiva de funcionalidades disponíveis em cada situação deverá ser definida na implementação da jornada correspondente.
+
+A situação comercial da assinatura não deverá armazenar diretamente uma relação de páginas ou componentes de interface bloqueados.
+
+A separação conceitual será:
+
+text
+Situação financeira / vigência da assinatura
+        ↓
+Política de acesso da MotionLab
+        ↓
+Nível de acesso permitido
+        ↓
+Funcionalidades autorizadas
+
+
+Dessa forma, alterações futuras na interface não exigem que a estrutura da assinatura conheça páginas, componentes ou elementos específicos do aplicativo.
+
+A suspensão da operação do SaaS não deverá necessariamente impedir a autenticação da Rede contratante.
+
+Deverá permanecer um nível de acesso suficiente para que o responsável possa compreender a situação da assinatura e realizar ou iniciar sua regularização.
+
+O prazo de tolerância, as condições para entrada em tolerância parcial, as funcionalidades restringidas e as condições de suspensão e restabelecimento serão definidos como política comercial da MotionLab durante a implementação da jornada de assinatura e cobrança.
+
+Essas regras pertencem à relação:
+
+text
+MotionLab
+        ↓ fornece o SaaS
+Rede contratante
+        ↓ possui
+Matriz e Filiais
+
+
+Elas não representam políticas financeiras entre os Estabelecimentos e seus Clientes.
 
 ---
 
@@ -1073,11 +1192,11 @@ Estados específicos de pagamento ou gateway somente deverão ser acrescentados 
 
 Responsabilidade:
 
-Permitir a criação controlada de vínculos de usuários com o MotionLab, preservando o escopo para o qual o convite foi emitido.
+Permitir a criação controlada de vínculos de usuários com o MotionLab, preservando a função e o Estabelecimento para os quais o convite foi emitido.
 
 Estrutura atual:
 
-```text
+text
 convite
 ├── codigo               String
 ├── role                 String
@@ -1089,22 +1208,111 @@ convite
 ├── usado_por_ref         Doc Ref → users
 ├── usado_em              DateTime
 └── criado_por_ref        Doc Ref → users
-```
+
 
 `role` deverá utilizar o mesmo domínio controlado de `users.role`.
+
+Todo convite deverá estar associado a uma Rede e a um Estabelecimento pertencente a essa Rede.
+
+Conceitualmente:
+
+text
+convite.rede_ref
+→ obrigatório
+
+convite.estabelecimento_ref
+→ obrigatório
+
+convite.estabelecimento_ref.rede_ref
+→ deve corresponder a convite.rede_ref
+
 
 O convite preserva:
 
 - quem o criou;
 - para qual Rede foi criado;
-- para qual Estabelecimento foi criado quando aplicável;
+- para qual Estabelecimento foi criado;
+- qual função será atribuída;
 - quando expira;
 - se já foi utilizado;
 - quem o utilizou;
 - quando foi utilizado.
 
-A jornada de convite e cadastro deverá determinar as regras definitivas de acesso e validação.
+A autorização para criação de convites deverá considerar conjuntamente:
 
+text
+quem está criando o convite
++
+sua função
++
+seu escopo de atuação
++
+Estabelecimento de destino
++
+função que será atribuída
+
+
+A informação enviada pela interface não será suficiente, isoladamente, para conceder autoridade sobre outro Estabelecimento ou outra Rede.
+
+Conceitualmente, para o MVP, a hierarquia de convites será:
+
+text
+Master/dono da Rede
+├── pode convidar Gerente da Matriz
+├── pode convidar Gerente das Filiais da própria Rede
+└── pode convidar Colaboradores dos Estabelecimentos da própria Rede
+
+Gerente da Matriz
+├── pode convidar Gerente das Filiais vinculadas à sua Matriz
+└── pode convidar Colaborador da própria Matriz
+
+Gerente da Filial
+└── pode convidar Colaborador da própria Filial
+
+
+A delegação da operação aos Gerentes não retira, por si só, a autoridade administrativa do Master/dono sobre os Estabelecimentos pertencentes à sua Rede.
+
+Essa decisão atende à realidade inicialmente prevista para o MotionLab, na qual o proprietário poderá participar diretamente da administração do negócio mesmo após delegar responsabilidades operacionais.
+
+Caso necessidades futuras de organizações maiores exijam segregação de funções ou permissões mais granulares, o modelo de autorização poderá evoluir sem que essa complexidade seja antecipada no MVP.
+
+O fato de um usuário poder criar convites não significa que possa atribuir qualquer função ou selecionar livremente qualquer Estabelecimento.
+
+A jornada deverá validar a relação entre o usuário responsável pelo convite, sua autoridade, o Estabelecimento de destino e a função que será concedida.
+
+A Matriz poderá criar o vínculo gerencial das Filiais pertencentes à sua estrutura, sem que isso signifique que o usuário responsável pelo convite pertença operacionalmente à Filial de destino.
+
+Exemplo conceitual:
+
+text
+Gerente da Matriz
+        ↓
+cria convite
+        ↓
+Gerente da Filial
+        ↓
+estabelecimento_ref = Filial de destino
+        ↓
+rede_ref = mesma Rede da Matriz
+
+
+Da mesma forma:
+
+text
+Gerente da Filial
+        ↓
+cria convite
+        ↓
+Colaborador
+        ↓
+estabelecimento_ref = própria Filial
+        ↓
+rede_ref = mesma Rede
+
+
+Os valores técnicos definitivos das funções não são antecipados nesta seção.
+
+A jornada de convite e cadastro deverá consolidar o domínio controlado compartilhado entre `convite.role` e `users.role`, bem como implementar e testar as respectivas regras de autorização e isolamento multi-tenant.
 ---
 
 # 13. Disponibilidade e força de trabalho — CONCEITUAL
@@ -1119,7 +1327,7 @@ Disponibilidade não significa necessariamente horário livre.
 
 Estrutura conceitual:
 
-```text
+text
 disponibilidade_colaborador
 ├── colaborador_ref
 ├── dia_semana
@@ -1127,19 +1335,19 @@ disponibilidade_colaborador
 ├── hora_fim
 ├── ativo
 └── auditoria
-```
+
 
 Cada período poderá ser representado independentemente.
 
 Exemplo:
 
-```text
+text
 segunda-feira
 08:00 → 12:00
 
 segunda-feira
 14:00 → 18:00
-```
+
 
 ---
 
@@ -1149,7 +1357,7 @@ Ausências e outros eventos excepcionais não devem modificar a disponibilidade 
 
 Estrutura conceitual:
 
-```text
+text
 eventos_forca_trabalho
 ├── colaborador_ref
 ├── tipo_evento_ref
@@ -1157,17 +1365,19 @@ eventos_forca_trabalho
 ├── fim
 ├── observacao
 └── auditoria
-```
+
 
 Os eventos permanecem historicamente registrados.
 
----
+
 
 ## 13.3 tipos_evento_forca_trabalho
 
+Os tipos de evento de força de trabalho classificam ocorrências excepcionais capazes de alterar a disponibilidade habitual do Colaborador sem modificar sua configuração recorrente.
+
 Estrutura conceitual:
 
-```text
+text
 tipos_evento_forca_trabalho
 ├── codigo
 ├── nome
@@ -1175,32 +1385,63 @@ tipos_evento_forca_trabalho
 ├── matriz_ref
 ├── ativo
 └── auditoria
-```
+
 
 Valores conceituais de `origem`:
 
-```text
+text
 MOTIONLAB
 MATRIZ
-```
+
 
 Tipos globais pertencem ao MotionLab.
 
 Tipos específicos poderão ser definidos pela Matriz.
 
+Os eventos de força de trabalho poderão reduzir ou ampliar excepcionalmente a disponibilidade do Colaborador, conforme o tipo de evento e o período registrado.
+
+Exemplos conceituais:
+
+text
+Ausência
+→ reduz a disponibilidade
+
+Disponibilidade extraordinária
+→ amplia a disponibilidade
+
+
+Esses eventos não alteram a disponibilidade recorrente do Colaborador, preservando separadamente a regra habitual e suas exceções.
+
 Conceitualmente:
 
-```text
+text
 Disponibilidade recorrente
--
-Eventos de força de trabalho
++
+Ajustes decorrentes dos eventos de força de trabalho
 -
 Agendamentos existentes
 =
 Horários livres
-```
+
 
 Horários livres não precisam ser previamente persistidos como documentos.
+
+A relação entre `origem` e `matriz_ref` deverá obedecer às seguintes regras:
+
+text
+origem = MOTIONLAB
+→ matriz_ref vazio
+→ tipo de evento disponível globalmente no MotionLab
+
+origem = MATRIZ
+→ matriz_ref obrigatório
+→ matriz_ref deve apontar para um Estabelecimento do tipo MATRIZ
+→ tipo de evento disponível para a Matriz responsável e suas respectivas Filiais
+
+
+Tipos específicos definidos por uma Matriz não deverão ser disponibilizados para Estabelecimentos pertencentes a outra Rede ou vinculados a outra Matriz.
+
+A forma pela qual cada tipo de evento reduz ou amplia a disponibilidade deverá ser definida quando essa estrutura for materializada, de acordo com as necessidades da respectiva jornada.
 
 ---
 
@@ -1408,7 +1649,7 @@ Com a baseline consolidada, a evolução do modelo passa a acompanhar a implemen
 
 Para cada jornada:
 
-```text
+text
 Compreender o fato de negócio
         ↓
 Identificar as informações necessárias
@@ -1426,6 +1667,49 @@ Implementar autorização
 Testar isolamento multi-tenant
         ↓
 Jornada concluída
-```
+ 
 
-Dessa forma, o modelo de dados permanece evolutivo sem perder coerência arquitetural nem antecipar complexidade sem necessidade concreta.
+## 18.1 Qualidade, homologação e regressão
+
+A conclusão individual de uma jornada não significa, isoladamente, que o MVP esteja apto para produção.
+
+Cada jornada deverá ser concluída segundo os critérios definidos neste documento, incluindo funcionalidade, persistência, autorização e isolamento multi-tenant testado.
+
+Ao final da implementação das jornadas previstas para o MVP, o MotionLab deverá passar por uma homologação integrada antes de sua liberação para produção.
+
+Essa homologação deverá validar o produto em seu conjunto, considerando:
+
+- os fluxos e regras negociais;
+- a integração entre as jornadas;
+- a consistência dos dados;
+- a autorização e o isolamento multi-tenant;
+- a segurança interna;
+- a segurança externa;
+- os cenários que exijam validação complementar além dos testes já executados durante a implementação.
+
+O objetivo é que a qualidade seja construída progressivamente durante o desenvolvimento, permitindo que a homologação final do MVP seja mais eficiente e concentrada na validação integrada do produto.
+
+### 18.1.1 Incrementos corretivos e evolutivos
+
+Após a estabilização do produto, cada incremento, seja corretivo ou evolutivo, deverá possuir critérios de aceitação e os cenários de teste necessários à sua validação.
+
+Os cenários relacionados ao incremento constituem o escopo de sua homologação.
+
+Os cenários de funcionalidades anteriormente homologadas não precisam ser novamente homologados a cada incremento. Eles passam a compor a suíte de regressão e deverão ser executados para verificar que a alteração não provocou danos colaterais no comportamento já estabilizado do produto.
+
+Conceitualmente:
+
+text
+Incremento corretivo ou evolutivo
+        ↓
+Definição dos critérios de aceitação
+        ↓
+Definição e execução dos cenários do incremento
+        ↓
+Homologação do incremento
+        +
+Execução da suíte de regressão
+        ↓
+Validação de ausência de danos colaterais
+        ↓
+Incremento apto para liberação
