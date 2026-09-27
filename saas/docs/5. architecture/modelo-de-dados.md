@@ -719,6 +719,14 @@ Para Produtos de revenda, `comissao_padrao_percentual` poderá definir a comiss�
 
 Na baseline do MVP não existe configuração diferenciada de comissão por Colaborador/Produto.
 
+Observação: 
+Evolução futura — catálogo da Rede
+A baseline do MVP mantém Produtos vinculados diretamente ao Estabelecimento.
+Uma evolução futura poderá separar o catálogo de Produtos da Rede da configuração e do estoque mantidos por cada Estabelecimento, permitindo padronização do portfólio, definição de faixas de preço, gestão centralizada de compras e distribuição às Filiais.
+Nesse cenário, a Rede poderá determinar os Produtos utilizados ou comercializados, mantendo autonomia controlada dos Estabelecimentos dentro das políticas definidas. Filiais poderão também sugerir novos Produtos, com justificativa e posterior análise pela gestão da Rede.
+Essa evolução deverá ser orientada pelas respectivas jornadas e não integra a baseline atual.
+
+
 ---
 
 ## 9.2 movimentacao_estoque
@@ -726,6 +734,10 @@ Na baseline do MVP não existe configuração diferenciada de comissão por Cola
 Responsabilidade:
 
 > Registra os fatos que provocam entrada ou saída de Produtos no estoque do Estabelecimento.
+
+produtos.quantidade_atual representa o saldo corrente do Produto no Estabelecimento, enquanto movimentacao_estoque preserva os fatos que alteraram esse saldo.
+Alterações normais de quantidade_atual não deverão ocorrer diretamente. Toda entrada ou saída deverá produzir a respectiva movimentação de estoque e atualizar o saldo de forma consistente.
+A implementação da jornada deverá garantir que o registro da movimentação e a atualização do saldo constituam uma única operação lógica, evitando divergências entre o saldo atual e seu histórico.
 
 Estrutura atual:
 
@@ -770,6 +782,18 @@ movimentacao_estoque
 A existência de `ENTRADA_COMPRA` não significa que o processo completo de compra esteja modelado nesta Collection.
 
 A jornada de compras poderá exigir futuramente fatos próprios de compra, recebimento, obrigação e pagamento.
+
+Toda alteração do saldo de estoque deverá ser representada por uma movimentação que permita identificar sua natureza e o motivo que a originou.
+Entradas e saídas deverão possuir justificativa compatível com o fato ocorrido, permitindo reconstruir historicamente por que determinada quantidade foi acrescentada ou retirada do estoque.
+justificativa registra o motivo que fundamenta a movimentação, enquanto observacao poderá registrar informações complementares sobre a ocorrência.
+A autorização para realização de determinadas movimentações deverá respeitar a alçada definida para a jornada. A auditoria deverá preservar o usuário responsável pelo registro.
+Os valores de tipo_movimento deverão representar naturezas relevantes da movimentação sem pretender antecipar todas as causas possíveis. Novos tipos poderão ser incorporados quando as jornadas demonstrarem necessidade concreta.
+
+Evolução futura — múltiplos estoques e transferências
+A baseline atual não contempla transferências de Produtos entre Estabelecimentos ou diferentes locais de estoque.
+Quando forem implementados estoque central, estoque do Estabelecimento, estoque sob responsabilidade do Colaborador ou outras localizações, as transferências deverão ser tratadas como fatos próprios, preservando origem, destino, quantidade, responsabilidade e rastreabilidade da operação.
+Transferências não deverão ser representadas artificialmente como ajustes independentes de entrada e saída.
+As estruturas e os tipos de movimentação necessários serão definidos quando essa jornada for implementada.
 
 ---
 

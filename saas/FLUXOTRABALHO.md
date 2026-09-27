@@ -1,3 +1,392 @@
+## 2026-09-27 — Time box adicional: revisão da Seção 9 — Produtos e Estoque
+
+Após o encerramento do time box principal, surgiu uma janela adicional inicialmente estimada em aproximadamente 40 minutos.
+
+A revisão do `modelo-de-dados.md v0.2.0` foi retomada exatamente na Seção 9 — Produtos e Estoque.
+
+O objetivo permaneceu o mesmo das seções anteriores: compreender os fatos de negócio antes de alterar a baseline, evitando tanto simplificações que dificultem a evolução quanto complexidade antecipada.
+
+---
+
+### 9.1 Produtos — catálogo da Rede versus Produto do Estabelecimento
+
+A estrutura atual mantém o Produto diretamente vinculado ao Estabelecimento, reunindo informações cadastrais, comerciais e de estoque.
+
+Durante a revisão surgiu a questão de como o modelo deveria evoluir caso uma Rede deseje padronizar os Produtos utilizados ou comercializados por Matriz e Filiais.
+
+Foi definido o seguinte entendimento:
+
+> “Quando a matriz deseja ter uma identidade de maneira tal que sua rede é padronizada e a gestão e logística de compras e disponibilidade dos produtos seja de consumo o venda é interessante que a matriz gerencie a compra e o estoque central, ficando para as filiais um estoque local. E a decisão dos produtos que serão utilizados ser centralizado. Mas podendo ser sugerido e justificado a rede.”
+
+Conceitualmente, uma evolução futura poderá permitir:
+
+~~~text
+REDE / MATRIZ
+→ define catálogo autorizado
+→ estabelece padronização
+→ poderá centralizar compras e logística
+→ poderá manter estoque central
+
+FILIAL
+→ utiliza/comercializa Produtos definidos pela Rede
+→ mantém estoque local
+→ poderá sugerir novos Produtos
+→ deverá justificar a sugestão
+~~~
+
+Essa necessidade revela que, futuramente, o conceito de Produto poderá ser separado da existência e configuração daquele Produto em determinado Estabelecimento.
+
+Entretanto, foi questionado se essa separação precisaria ser realizada já no MVP:
+
+> “Você acha que muda o modelo de forma que não daria para aplicar em uma versão posterior ao MVP com uma aderência pequena ao modelo em curso.”
+
+A conclusão foi que a evolução poderá ser realizada posteriormente sem exigir que toda essa complexidade seja antecipada na baseline atual.
+
+Portanto:
+
+~~~text
+MVP
+→ Produto permanece vinculado diretamente ao Estabelecimento
+
+EVOLUÇÃO FUTURA
+→ catálogo da Rede
+→ Produto no Estabelecimento
+→ estoque local
+→ políticas comerciais
+→ logística centralizada
+~~~
+
+A baseline atual foi mantida.
+
+---
+
+### Política de preços da Rede
+
+Ao discutir um futuro catálogo centralizado, surgiu a questão sobre quem determinaria o preço praticado pelas Filiais.
+
+Foi estabelecido:
+
+> “Está decisão de preço é bom que sendo definido pela rede seja uma faixa de mínimo e máximo devido a geografia de poder aquisitivo muito utilizado no mercado atual.”
+
+Assim, uma evolução futura poderá utilizar o conceito:
+
+~~~text
+REDE
+→ define preço mínimo
+→ define preço máximo
+
+ESTABELECIMENTO
+→ define preço praticado
+→ respeitando a faixa estabelecida pela Rede
+~~~
+
+Isso permite preservar uma política comercial da Rede sem eliminar diferenças decorrentes da realidade econômica e geográfica de cada unidade.
+
+Essa política não integra a baseline atual.
+
+---
+
+### Decisão sobre a baseline de Produtos
+
+Foi mantido o princípio de que não é necessário antecipar a separação entre catálogo corporativo e Produto do Estabelecimento.
+
+Foi registrada no modelo apenas a possibilidade de evolução futura para:
+
+- catálogo de Produtos da Rede;
+- padronização de portfólio;
+- faixas de preço;
+- gestão centralizada de compras;
+- distribuição às Filiais;
+- sugestões justificadas de novos Produtos pelas Filiais.
+
+Nenhuma nova Collection ou campo foi criado para atender antecipadamente essas possibilidades.
+
+A Seção 9.1 foi considerada encerrada nesta rodada de revisão.
+
+---
+
+### 9.2 Movimentação de estoque — Produtos de consumo por Serviço
+
+Ao revisar `SAIDA_CONSUMO`, surgiu a possibilidade de relacionar Produtos de consumo aos Serviços.
+
+Foi observado:
+
+> “Seria interessante que o serviço venha a prever os produtos de consumo como gilete, pomada, creme entre outros. Mas isso modifica nossa definição de serviço atual. Mais uma vez seria uma implementação futura pois o serviço teria que prever os produtos necessários para sua execução.”
+
+Foi identificado que essa funcionalidade representa algo maior que uma simples referência entre Serviço e Produto.
+
+Um Serviço poderia possuir futuramente uma espécie de composição ou ficha técnica:
+
+~~~text
+SERVIÇO
+→ Produto A / quantidade prevista
+→ Produto B / quantidade prevista
+→ Produto C / quantidade prevista
+~~~
+
+Essa composição poderá apoiar:
+
+~~~text
+controle de consumo
+controle de estoque
+análise de custos
+padronização
+governança
+~~~
+
+Entretanto, a composição representa aquilo que normalmente é previsto para execução do Serviço.
+
+O fato efetivamente ocorrido deverá continuar sendo preservado pelas movimentações de estoque.
+
+---
+
+### Governança versus complexidade operacional
+
+Foi observado que diferentes perfis de clientes poderão atribuir valores diferentes a esse nível de controle.
+
+Redes com muitas Filiais poderão desejar maior governança e padronização, enquanto operações menores poderão interpretar a exigência de detalhamento como complexidade desnecessária.
+
+Foi observado:
+
+> “E no futuro podemos ter clientes, principalmente os que tenham varias filiais e precisam de governância aplicada, gostem desta implementação enquanto outros clientes interprete como empecilho.”
+
+Em seguida foi esclarecido que a complexidade não está apenas na operação diária:
+
+> “Não só a burocracia operacional que talvez se resolva na definição do serviço, mas ao definir o serviço estimar quais produtos estão envolvidos e suas quantidades como um pacote, pois alguém precisa cadastrar os serviços com estes detalhes.”
+
+Portanto, mesmo que o consumo possa futuramente ser automatizado durante o Atendimento, existe um custo anterior de configuração e manutenção da composição dos Serviços.
+
+A conclusão foi que essa funcionalidade deverá ser opcional.
+
+A futura implementação deverá permitir que Redes que necessitem de governança adotem controles detalhados sem obrigar operações simples a manter o mesmo nível de configuração.
+
+---
+
+### Composição opcional e múltiplos locais de estoque
+
+A discussão foi ampliada com a seguinte definição:
+
+> “Sim e precisamos que estes insumos sejam opcionais e com alguma flexibilidade assim como um estoque central, estoque na filial e estoque com o colaborador.”
+
+Isso revelou outra possível evolução do domínio de estoque.
+
+No futuro, o estoque poderá deixar de representar apenas a quantidade existente no Estabelecimento e passar a considerar diferentes localizações ou responsabilidades:
+
+~~~text
+Produto
+│
+├── Estoque central
+│
+├── Estoque da Filial
+└── Estoque do Colaborador
+~~~
+
+A composição do Serviço deverá indicar aquilo que é necessário para sua execução, sem determinar rigidamente de qual estoque o Produto deverá sair.
+
+Exemplo conceitual:
+
+~~~text
+Serviço
+→ prevê Produto A
+→ prevê Produto B
+
+Atendimento realizado
+→ Produto A saiu do estoque do Colaborador
+→ Produto B saiu do estoque da Filial
+~~~
+
+Assim:
+
+~~~text
+Composição do Serviço
+→ aquilo que é previsto
+
+Movimentação de estoque
+→ aquilo que efetivamente ocorreu
+→ de onde efetivamente saiu
+~~~
+
+Essas estruturas não serão antecipadas na baseline.
+
+---
+
+### Justificativa e alçada nas movimentações
+
+Durante a revisão dos tipos:
+
+~~~text
+AJUSTE_ENTRADA
+AJUSTE_SAIDA
+~~~
+
+foi levantada a necessidade de explicar por que determinado ajuste ocorreu.
+
+Foi definido:
+
+> “Precisa ter uma justificativa e alçada.”
+
+A Collection materializada já possui os campos `justificativa` e `observacao`, portanto não foi necessária a criação de novo campo.
+
+Foi estabelecida a diferença conceitual:
+
+~~~text
+justificativa
+→ motivo que fundamenta a movimentação
+
+observacao
+→ informações complementares sobre a ocorrência
+
+criado_por_ref
+→ usuário responsável pelo registro
+
+alçada
+→ autorização necessária para realizar a operação
+~~~
+
+A alçada pertence à regra de autorização da jornada e não precisa ser gravada como atributo da movimentação apenas para representar a permissão existente no momento.
+
+---
+
+### Toda entrada e saída precisa ser explicável
+
+Ao discutir perda, avaria, vencimento, descarte e outros possíveis motivos de saída, foi estabelecido:
+
+> “Se trata de movimentações do estoque precisamos demonstrar toda saída e entrada com o devido motivo e justificativa.”
+
+A decisão foi não criar antecipadamente um `tipo_movimento` para cada possível causa.
+
+O princípio adotado foi:
+
+> Toda alteração do saldo de estoque deverá ser representada por uma movimentação que permita identificar sua natureza e o motivo que a originou.
+
+Entradas e saídas deverão possuir justificativa compatível com o fato ocorrido, permitindo reconstruir historicamente por que determinada quantidade foi acrescentada ou retirada.
+
+Novos tipos de movimentação poderão ser acrescentados quando jornadas concretas demonstrarem sua necessidade.
+
+---
+
+### Transferências entre estoques
+
+Foi analisada a ausência de movimentos de transferência na baseline atual.
+
+Uma futura estrutura com múltiplos estoques poderá exigir operações como:
+
+~~~text
+Estoque central
+→ Filial
+
+Filial
+→ Colaborador
+
+Filial A
+→ Filial B
+~~~
+
+Entretanto foi decidido:
+
+> “Não teremos, somente quando implementarmos os diferentes estoques.”
+
+Portanto, transferências não fazem parte do MVP atual.
+
+Quando múltiplos estoques forem implementados, transferência deverá ser tratada como um fato próprio, preservando:
+
+~~~text
+origem
+destino
+Produto
+quantidade
+responsabilidade
+rastreabilidade
+~~~
+
+Uma transferência não deverá ser artificialmente representada por dois ajustes independentes:
+
+~~~text
+AJUSTE_SAIDA
++
+AJUSTE_ENTRADA
+~~~
+
+A estrutura necessária será definida quando essa jornada for implementada.
+
+---
+
+### Integridade entre movimentação e saldo atual
+
+Ao final da revisão foi reafirmada a relação:
+
+~~~text
+movimentacao_estoque
+→ preserva os fatos que alteraram o estoque
+
+produtos.quantidade_atual
+→ representa o saldo corrente
+~~~
+
+Foi estabelecido que `quantidade_atual` não deverá ser alterado diretamente durante as operações normais.
+
+Toda entrada ou saída deverá:
+
+~~~text
+registrar movimentacao_estoque
+        +
+atualizar produtos.quantidade_atual
+        ↓
+mesma operação lógica
+~~~
+
+Isso evita dois estados inválidos:
+
+~~~text
+movimentação registrada
+sem alteração correspondente do saldo
+
+ou
+
+saldo alterado
+sem movimentação que explique a alteração
+~~~
+
+A implementação da jornada deverá garantir a consistência entre o saldo corrente e o histórico das movimentações.
+
+---
+
+### Resultado da revisão da Seção 9
+
+A Seção 9 — Produtos e Estoque foi considerada encerrada nesta rodada.
+
+A baseline do MVP permanece simples e materializada com:
+
+~~~text
+produtos
+movimentacao_estoque
+~~~
+
+Foram identificadas e documentadas como evoluções futuras:
+
+~~~text
+catálogo de Produtos da Rede
+política de faixa de preços
+sugestão de Produtos pelas Filiais
+composição opcional de insumos dos Serviços
+governança configurável
+estoque central
+estoque da Filial
+estoque do Colaborador
+transferências entre estoques
+~~~
+
+Nenhuma dessas possibilidades provocou criação antecipada de Collections.
+
+Permanece o princípio:
+
+> Primeiro compreender o fato de negócio e a informação necessária; depois decidir como persistir.
+
+### Ponto de retomada
+
+A próxima etapa da revisão será:
+
+**Seção 8 — Atendimento.**
 ## 2026-09-27 — Revisão do modelo de dados: SaaS, financeiro e início de Produtos/Estoque
 
 ### Continuação da revisão do `modelo-de-dados.md v0.2.0`
