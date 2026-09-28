@@ -1,3 +1,106 @@
+## 2026-09-28 — Remodelagem de Agendamentos e Atendimentos
+
+### Objetivo
+Revisar a modelagem da Seção 8 — Atendimento, principalmente a relação entre serviços, colaboradores, agendamentos e atendimentos.
+
+### Decisões
+
+#### ItemServicoAtendimentoStruct
+A struct foi revisada para representar cada serviço efetivamente executado dentro de um atendimento.
+
+Foi adicionado:
+
+- `colaborador_ref` — DocRef → colaboradores
+- `status`
+- `inicio_real`
+- `fim_real`
+
+O colaborador passa a pertencer ao item de serviço, e não ao atendimento como um todo.
+
+Cada serviço de um mesmo atendimento pode, portanto, possuir profissional, status e intervalo de execução próprios.
+
+Não será armazenada `duracao_real`, pois pode ser calculada por:
+
+`fim_real - inicio_real`
+
+#### ItemServicoAgendamentoStruct
+Criada nova struct específica para representar os serviços planejados no agendamento.
+
+Campos:
+
+- `servico_ref` — DocRef → servicos
+- `colaborador_ref` — DocRef → colaboradores
+- `duracao_prevista`
+- `inicio_previsto`
+- `fim_previsto`
+- `status`
+
+O serviço passa a representar a efetiva ocupação da agenda do colaborador.
+
+O cliente possui o agendamento, enquanto serviço, colaborador e intervalo de tempo determinam a ocupação dos recursos.
+
+#### Collection agendamentos
+Adicionado:
+
+- `itens_servico` — List<ItemServicoAgendamentoStruct>
+
+Removidos:
+
+- `servicos_ref`
+- `colaborador_ref`
+
+`data_hora` foi mantido e passa a ter semântica explícita:
+
+> Data e hora de início do compromisso do cliente.
+
+Os horários de cada item representam a ocupação prevista de cada colaborador.
+
+O `status` do agendamento representa o compromisso como um todo, enquanto `itens_servico[].status` representa cada serviço individualmente.
+
+#### Collection atendimentos
+Removido:
+
+- `colaborador_ref`
+
+O colaborador responsável passa a existir exclusivamente em cada `ItemServicoAtendimentoStruct`.
+
+Campos temporais:
+
+- `iniciado_em` — início do atendimento como um todo
+- `finalizado_em` — término do atendimento
+- `itens_servico[].inicio_real` — início efetivo de cada serviço
+- `itens_servico[].fim_real` — término efetivo de cada serviço
+
+O atendimento não é uma cópia obrigatória do agendamento.
+
+Um atendimento pode:
+
+- possuir serviços diferentes dos originalmente agendados;
+- ter alteração de profissional;
+- receber serviços adicionais;
+- deixar de executar algum serviço previsto;
+- existir sem agendamento prévio.
+
+### Composição financeira
+
+Regra do item de serviço:
+
+`preco_aplicado = preco_tabela - desconto_valor`
+
+Regra do atendimento:
+
+`valor_servicos = Σ preco_tabela dos serviços`
+
+`desconto_itens = Σ desconto_valor dos itens`
+
+Composição final:
+
+`valor_servicos + valor_produtos - desconto_itens - abatimento = valor_total`
+
+`preco_aplicado` pertence ao item e não deve ser utilizado para formar `valor_servicos`, evitando dupla contabilização dos descontos.
+
+### Próximo passo
+Continuar a Seção 8 — Atendimento, revisando os campos e estados restantes da collection `atendimentos`.
 ## 2026-09-27 — Time box adicional: revisão da Seção 9 — Produtos e Estoque
 
 Após o encerramento do time box principal, surgiu uma janela adicional inicialmente estimada em aproximadamente 40 minutos.
