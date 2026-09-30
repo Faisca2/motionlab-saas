@@ -1,3 +1,25 @@
+## 2026-09-30 — Consolidação do modelo de Agenda, Atendimento e impactos
+
+### Realizado
+
+- Consolidada a modelagem de `agendamentos` com Serviços individualizados por `ItemServicoAgendamentoStruct`.
+- Colaborador passou a pertencer ao item de Serviço do Agendamento.
+- Incluído controle de ciência do Colaborador por Serviço (`AGUARDANDO`, `CIENTE`, `CANCELADO` e `ciente_em`).
+- Consolidada a separação entre Agendamento (previsto) e Atendimento (realizado).
+- Consolidado `ItemServicoAtendimentoStruct` com Colaborador, status e tempos reais por Serviço.
+- Removido o conceito de um único Colaborador no nível do Atendimento.
+- Renomeado `realizado_em` para `finalizado_em`.
+- Revisados os impactos das alterações nas Seções 9 a 15 do `modelo-de-dados.md`.
+- Seções 9, 10, 11 e 12 validadas sem necessidade de alteração.
+- Seção 13 ajustada documentalmente para relacionar disponibilidade, força de trabalho e ocupação pelos itens de Agendamento.
+- Seção 14 ajustada documentalmente para preservar a granularidade dos indicadores de Agendamentos, Atendimentos e Serviços.
+- Seção 15 ajustada documentalmente para registrar a necessidade de validar o isolamento multi-tenant também nas referências internas dos itens de Serviço.
+
+### Próxima etapa
+
+- Revisar a Seção 16 — Collections legadas.
+- Prosseguir com a auditoria das Seções 17 e 18.
+- Encerrar a revisão de impacto sem reabrir as Seções 7 e 8, salvo identificação de contradição objetiva.
 ## 2026-09-28 — Remodelagem de Agendamentos e Atendimentos
 
 ### Objetivo

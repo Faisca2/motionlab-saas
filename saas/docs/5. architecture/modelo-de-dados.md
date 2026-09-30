@@ -443,7 +443,7 @@ O Atendimento determina em qual Estabelecimento ocorreu a relação operacional 
 
 Responsabilidade:
 
-Representar aquilo que está previsto para acontecer.
+> Representar aquilo que está previsto para acontecer, preservando o compromisso do Cliente e a ocupação planejada das agendas dos Colaboradores envolvidos.
 
 Estrutura atual:
 
@@ -452,20 +452,45 @@ agendamentos
 ├── data_hora            DateTime
 ├── status               String
 ├── estabelecimento_ref  Doc Ref → estabelecimentos
-├── servicos_ref         List<Doc Ref → servicos>
-├── colaborador_ref      Doc Ref → colaboradores
 ├── cliente_ref          Doc Ref → clientes
+├── itens_servico        List<ItemServicoAgendamentoStruct>
 ├── criado_em            DateTime
 ├── criado_por_ref       Doc Ref → users
 ├── atualizado_em        DateTime
 └── atualizado_por_ref   Doc Ref → users
 ```
 
-`data_hora` representa a previsão de início do Atendimento.
+`data_hora` representa a data e hora de início do compromisso do Cliente.
 
-O término previsto não é persistido nesta baseline.
+O Agendamento representa o compromisso do Cliente como um todo.
 
-Ele poderá ser calculado a partir da duração dos Serviços agendados, considerando as regras aplicáveis ao Colaborador.
+Os itens de Serviço representam a ocupação planejada das agendas dos Colaboradores envolvidos.
+
+Assim, um mesmo Agendamento poderá possuir Serviços sequenciais ou simultâneos e envolver diferentes Colaboradores.
+
+Exemplo:
+
+```text
+Agendamento
+data_hora = 14:00
+
+├── Corte
+│   ├── colaborador_ref = Colaborador A
+│   ├── inicio_previsto = 14:00
+│   └── fim_previsto    = 14:30
+│
+├── Barba
+│   ├── colaborador_ref = Colaborador A
+│   ├── inicio_previsto = 14:30
+│   └── fim_previsto    = 14:50
+│
+└── Manicure
+    ├── colaborador_ref = Colaborador B
+    ├── inicio_previsto = 14:00
+    └── fim_previsto    = 14:30
+```
+
+### Status do Agendamento
 
 Valores controlados de `status`:
 
@@ -482,16 +507,16 @@ Semântica:
 
 ```text
 AGUARDANDO
-→ novo agendamento aguardando ciência/aceite operacional do Colaborador
+→ existem Serviços ativos aguardando ciência dos respectivos Colaboradores
 
 AGENDADO
-→ Colaborador tomou ciência do compromisso
+→ todos os Serviços ativos possuem ciência dos respectivos Colaboradores
 
 CONFIRMADO
 → Cliente confirmou o compromisso
 
 ATENDIDO
-→ compromisso do Agendamento foi cumprido
+→ compromisso previsto foi cumprido
 
 NAO_COMPARECEU
 → Cliente não compareceu
@@ -499,6 +524,24 @@ NAO_COMPARECEU
 CANCELADO
 → Agendamento cancelado
 ```
+
+A transição operacional principal é:
+
+```text
+Agendamento criado
+        ↓
+AGUARDANDO
+        ↓
+todos os itens ativos = CIENTE
+        ↓
+AGENDADO
+        ↓
+Cliente confirma
+        ↓
+CONFIRMADO
+```
+
+Itens cancelados não participam da condição para mudança de `AGUARDANDO` para `AGENDADO`.
 
 `ATENDIDO` no Agendamento não substitui `REALIZADO` no Atendimento.
 
@@ -508,13 +551,197 @@ O segundo representa a conclusão do fato operacional.
 
 ---
 
+## 7.2 ItemServicoAgendamentoStruct
+
+Responsabilidade:
+
+> Representar cada Serviço previsto no Agendamento, identificando o Serviço, o Colaborador reservado, o intervalo planejado de ocupação da Agenda e a ciência do Colaborador responsável.
+
+Estrutura:
+
+```text
+ItemServicoAgendamentoStruct
+├── servico_ref        Doc Ref → servicos
+├── colaborador_ref    Doc Ref → colaboradores
+├── duracao_prevista   Integer
+├── inicio_previsto    DateTime
+├── fim_previsto       DateTime
+├── status             String
+└── ciente_em          DateTime
+```
+
+### Serviço e Colaborador
+
+`servico_ref` identifica o Serviço previsto.
+
+`colaborador_ref` identifica o Colaborador cuja Agenda será ocupada para a realização daquele Serviço.
+
+O Colaborador pertence ao item de Serviço e não ao Agendamento como um todo.
+
+Essa modelagem permite que um único Agendamento possua vários Serviços atribuídos a diferentes Colaboradores.
+
+### Controle temporal
+
+```text
+duracao_prevista
+→ duração planejada do Serviço em minutos
+
+inicio_previsto
+→ momento previsto para início do Serviço
+
+fim_previsto
+→ momento previsto para conclusão do Serviço
+```
+
+`inicio_previsto` e `fim_previsto` determinam a ocupação planejada da Agenda do Colaborador.
+
+A relação temporal é:
+
+```text
+agendamento.data_hora
+→ início do compromisso do Cliente
+
+item.inicio_previsto
+→ início da ocupação planejada do Colaborador
+
+item.fim_previsto
+→ término da ocupação planejada do Colaborador
+```
+
+`duracao_prevista` preserva a duração considerada no momento do Agendamento.
+
+Alterações posteriores na duração padrão cadastrada para o Serviço não devem modificar automaticamente Agendamentos existentes.
+
+### Ciência do Colaborador e status do item
+
+Valores controlados de `status`:
+
+```text
+AGUARDANDO
+CIENTE
+CANCELADO
+```
+
+Semântica:
+
+```text
+AGUARDANDO
+→ Serviço reservado na Agenda do Colaborador,
+  aguardando sua ciência
+
+CIENTE
+→ Colaborador tomou ciência do compromisso
+
+CANCELADO
+→ Serviço cancelado, permanecendo registrado
+  para preservação do histórico
+```
+
+Quando ocorrer:
+
+```text
+AGUARDANDO
+    ↓
+CIENTE
+```
+
+deve ser registrado:
+
+```text
+ciente_em = momento efetivo da ciência do Colaborador
+```
+
+`ciente_em` é um fato histórico.
+
+Não deve ser recalculado posteriormente.
+
+A ciência é controlada individualmente porque um mesmo Agendamento poderá envolver diferentes Colaboradores.
+
+Exemplo:
+
+```text
+Agendamento do Cliente
+
+├── Corte
+│   ├── colaborador_ref = Colaborador A
+│   └── status = CIENTE
+│
+├── Manicure
+│   ├── colaborador_ref = Colaborador B
+│   └── status = AGUARDANDO
+│
+└── Pedicure
+    ├── colaborador_ref = Colaborador C
+    └── status = CIENTE
+```
+
+Nesse momento:
+
+```text
+agendamento.status = AGUARDANDO
+```
+
+Quando todos os itens ativos estiverem:
+
+```text
+status = CIENTE
+```
+
+o Agendamento poderá assumir:
+
+```text
+agendamento.status = AGENDADO
+```
+
+Itens com `status = CANCELADO` não participam dessa condição.
+
+Assim:
+
+```text
+ItemServicoAgendamentoStruct.status
+→ situação do Serviço em relação à Agenda do Colaborador
+
+agendamentos.status
+→ situação global do compromisso do Cliente
+```
+
+### Relação com o Atendimento
+
+O Agendamento representa o previsto.
+
+O Atendimento representa aquilo que efetivamente aconteceu.
+
+Não existe obrigação de correspondência integral entre os itens do Agendamento e os itens do Atendimento.
+
+Um Serviço poderá:
+
+- ser previsto e realizado pelo mesmo Colaborador;
+- ser realizado por outro Colaborador;
+- ser cancelado antes do Atendimento;
+- não ser realizado;
+- ser incluído somente durante o Atendimento.
+
+Portanto:
+
+```text
+ItemServicoAgendamentoStruct
+→ planejamento, reserva de Agenda e ciência do Colaborador
+
+ItemServicoAtendimentoStruct
+→ fato operacional efetivamente ocorrido
+```
+
+O Agendamento deve permanecer como registro histórico daquilo que estava previsto, sem ser reescrito para reproduzir aquilo que posteriormente aconteceu no Atendimento.
+
+---
+
 # 8. Atendimento
 
 ## 8.1 atendimentos
 
 Responsabilidade:
 
-> Registra o fato operacional do Atendimento efetivamente realizado ou em realização, preservando os Serviços, Produtos, valores e regras aplicados naquele momento.
+> Registra o fato operacional do Atendimento efetivamente realizado ou em realização, preservando os Serviços, Produtos, valores, Colaboradores e regras aplicados naquele momento.
 
 Estrutura atual:
 
@@ -523,7 +750,6 @@ atendimentos
 ├── rede_ref              Doc Ref → redes_franquias
 ├── estabelecimento_ref   Doc Ref → estabelecimentos
 ├── cliente_ref           Doc Ref → clientes
-├── colaborador_ref       Doc Ref → colaboradores
 ├── agendamento_ref       Doc Ref → agendamentos (opcional)
 ├── itens_servico         List<ItemServicoAtendimentoStruct>
 ├── itens_produto         List<ItemProdutoAtendimentoStruct>
@@ -533,7 +759,7 @@ atendimentos
 ├── abatimento            Double
 ├── valor_total           Double
 ├── iniciado_em           DateTime
-├── realizado_em          DateTime
+├── finalizado_em         DateTime
 ├── status                String
 ├── criado_em             DateTime
 ├── criado_por_ref        Doc Ref → users
@@ -559,24 +785,40 @@ EM_ATENDIMENTO
    iniciado_em = momento efetivo do início
    ↓
 REALIZADO
-   realizado_em = momento efetivo da conclusão
+   finalizado_em = momento efetivo da conclusão
 ```
 
-`iniciado_em` e `realizado_em` são fatos históricos.
+`iniciado_em` e `finalizado_em` são fatos históricos.
 
 Não devem ser recalculados posteriormente.
 
-Relação temporal:
+O `status` do Atendimento representa o estado global do Atendimento.
+
+Os Serviços que compõem o Atendimento possuem controle individual de execução por meio de `ItemServicoAtendimentoStruct`.
+
+### Relação temporal
 
 ```text
 agendamento.data_hora
-→ início previsto
+→ início previsto do compromisso do Cliente
+
+agendamento.itens_servico[].inicio_previsto
+→ início previsto de cada Serviço
+
+agendamento.itens_servico[].fim_previsto
+→ conclusão prevista de cada Serviço
 
 atendimento.iniciado_em
-→ início efetivo
+→ início efetivo do Atendimento
 
-atendimento.realizado_em
-→ conclusão efetiva
+atendimento.finalizado_em
+→ conclusão efetiva do Atendimento
+
+atendimento.itens_servico[].inicio_real
+→ início efetivo de cada Serviço
+
+atendimento.itens_servico[].fim_real
+→ conclusão efetiva de cada Serviço
 ```
 
 Essa separação permitirá futuramente calcular indicadores como atraso, duração real, diferença entre duração prevista e realizada e utilização da capacidade.
@@ -585,48 +827,163 @@ Esses indicadores não precisam ser persistidos nesta baseline.
 
 `agendamento_ref` é opcional porque um Atendimento poderá ocorrer sem Agendamento prévio.
 
-### Mudança de Colaborador entre Agendamento e Atendimento
+### Relação entre Agendamento e Atendimento
 
-O Colaborador previsto e o Colaborador que efetivamente realizou o Atendimento podem ser diferentes.
+O Agendamento representa aquilo que foi previsto.
+
+O Atendimento representa aquilo que efetivamente aconteceu.
+
+O Atendimento não constitui uma cópia obrigatória do Agendamento.
+
+Durante o Atendimento poderão ocorrer situações como:
+
+- inclusão de Serviço não previsto;
+- retirada de Serviço anteriormente agendado;
+- alteração do Colaborador executor;
+- alteração das condições comerciais;
+- Atendimento sem Agendamento prévio.
+
+O Agendamento original deve preservar o planejamento realizado, enquanto o Atendimento preserva o fato operacional ocorrido.
+
+### Colaborador por Serviço
+
+O Colaborador está associado ao item de Serviço e não ao Atendimento como um todo.
+
+Um mesmo Atendimento poderá possuir Serviços executados por Colaboradores diferentes, inclusive simultaneamente.
+
+O Colaborador previsto para determinado Serviço no Agendamento e o Colaborador que efetivamente executou esse Serviço no Atendimento podem ser diferentes.
 
 Exemplo:
 
 ```text
-agendamentos.colaborador_ref = Colaborador A
-atendimentos.colaborador_ref = Colaborador B
+agendamento.itens_servico[n].colaborador_ref
+→ Colaborador A
+
+atendimento.itens_servico[n].colaborador_ref
+→ Colaborador B
 ```
 
-O Agendamento preserva aquilo que estava previsto.
+O Agendamento preserva o Colaborador previsto.
 
-O Atendimento preserva aquilo que efetivamente aconteceu.
+O Atendimento preserva o Colaborador que efetivamente executou o Serviço.
 
-Não é necessário criar `colaborador_original_ref` no Atendimento.
+Não é necessário manter `colaborador_ref` no nível do Atendimento nem criar `colaborador_original_ref`.
+
 
 ---
 
 ## 8.2 ItemServicoAtendimentoStruct
 
+Responsabilidade:
+
+> Preserva o fato operacional e comercial de cada Serviço que compõe o Atendimento.
+
 Estrutura:
 
 ```text
 ItemServicoAtendimentoStruct
-├── servico_ref
-├── nome
-├── preco_tabela
-├── preco_aplicado
-├── duracao_prevista
-├── comissao_padrao_percentual
-├── comissao_aplicada_percentual
-└── desconto_valor
+├── servico_ref                    Doc Ref → servicos
+├── nome                           String
+├── preco_tabela                   Double
+├── preco_aplicado                 Double
+├── duracao_prevista               Integer
+├── comissao_padrao_percentual     Double
+├── comissao_aplicada_percentual   Double
+├── desconto_valor                 Double
+├── colaborador_ref                Doc Ref → colaboradores
+├── status                         String
+├── inicio_real                    DateTime
+└── fim_real                       DateTime
 ```
 
 A estrutura preserva um snapshot das condições efetivamente utilizadas no Atendimento.
 
-Alterações posteriores no cadastro de Serviço não modificam o fato histórico.
+Alterações posteriores no cadastro do Serviço, em seu preço, duração padrão ou regras de comissão não modificam o fato histórico.
+
+### Colaborador executor
+
+`colaborador_ref` identifica o Colaborador que efetivamente executou aquele Serviço.
+
+A associação do Colaborador ao item permite que um mesmo Atendimento possua diferentes Serviços executados por diferentes profissionais.
+
+Também permite representar Serviços executados simultaneamente.
+
+### Status do item
+
+Valores controlados inicialmente:
+
+```text
+PENDENTE
+EM_ATENDIMENTO
+CONCLUIDO
+CANCELADO
+```
+
+O `status` do item representa exclusivamente a situação daquele Serviço dentro do Atendimento.
+
+Ele não substitui o `status` global existente em `atendimentos`.
+
+Exemplo:
+
+```text
+atendimento.status = EM_ATENDIMENTO
+
+itens_servico[0].status = CONCLUIDO
+itens_servico[1].status = EM_ATENDIMENTO
+itens_servico[2].status = PENDENTE
+```
+
+### Controle temporal do Serviço
+
+```text
+inicio_real
+→ momento efetivo em que o Serviço começou
+
+fim_real
+→ momento efetivo em que o Serviço terminou
+```
+
+Esses campos são fatos históricos e não devem ser recalculados posteriormente.
+
+A duração real do Serviço não precisa ser persistida nesta baseline.
+
+Pode ser derivada por:
+
+```text
+duracao_real = fim_real - inicio_real
+```
+
+### Preço aplicado
+
+Para cada item:
+
+```text
+preco_aplicado = preco_tabela - desconto_valor
+```
+
+Onde:
+
+```text
+preco_tabela
+→ preço do Serviço utilizado como referência no Atendimento
+
+desconto_valor
+→ desconto concedido especificamente naquele item
+
+preco_aplicado
+→ valor líquido efetivamente aplicado ao Serviço
+```
+
+`preco_aplicado` pertence ao item de Serviço e não deve ser utilizado como base para recalcular `valor_servicos` no Atendimento.
+
 
 ---
 
 ## 8.3 ItemProdutoAtendimentoStruct
+
+Responsabilidade:
+
+> Preserva o fato comercial de cada Produto incluído no Atendimento.
 
 Estrutura:
 
@@ -644,13 +1001,54 @@ ItemProdutoAtendimentoStruct
 └── desconto_valor
 ```
 
+A estrutura preserva um snapshot das condições do Produto utilizadas naquele Atendimento.
+
+Alterações posteriores no cadastro do Produto não modificam o fato histórico registrado.
+
 O custo do Produto não é preservado nesta estrutura na baseline atual.
+
 
 ---
 
 ## 8.4 Composição de valores
 
-Conceitualmente:
+Os valores consolidados do Atendimento preservam separadamente os valores brutos, descontos concedidos e abatimentos aplicados ao Atendimento.
+
+### Serviços
+
+Para cada item de Serviço:
+
+```text
+preco_aplicado = preco_tabela - desconto_valor
+```
+
+No Atendimento:
+
+```text
+valor_servicos = Σ preco_tabela dos Serviços
+```
+
+Portanto, `valor_servicos` representa o valor bruto dos Serviços antes dos descontos individuais.
+
+### Desconto dos itens
+
+```text
+desconto_itens = Σ desconto_valor dos itens
+```
+
+`desconto_itens` representa a consolidação dos descontos concedidos individualmente nos itens do Atendimento.
+
+A implementação não deverá utilizar `preco_aplicado` para formar `valor_servicos` e posteriormente subtrair novamente `desconto_itens`, pois isso contabilizaria o mesmo desconto duas vezes.
+
+### Abatimento
+
+`abatimento` representa redução aplicada ao Atendimento como um todo e não a um item específico.
+
+Ele deve permanecer separado dos descontos individuais para preservar a origem da redução concedida.
+
+### Valor total
+
+A composição conceitual é:
 
 ```text
 valor_servicos
@@ -664,8 +1062,27 @@ abatimento
 valor_total
 ```
 
-A implementação deverá garantir que descontos não sejam contabilizados duas vezes caso os valores dos itens já sejam calculados líquidos.
+Assim:
 
+```text
+valor_total =
+    valor_servicos
+  + valor_produtos
+  - desconto_itens
+  - abatimento
+```
+
+Essa composição mantém separados:
+
+```text
+valor bruto dos Serviços
+valor bruto dos Produtos
+descontos aplicados aos itens
+abatimento aplicado ao Atendimento
+valor final do Atendimento
+```
+
+Essa separação deverá ser preservada para permitir rastreabilidade financeira e evitar dupla contabilização de descontos.
 ---
 
 # 9. Produtos e Estoque
@@ -1372,6 +1789,25 @@ segunda-feira
 segunda-feira
 14:00 → 18:00
 
+### Relação entre disponibilidade e Agenda
+
+A disponibilidade recorrente representa os períodos em que o Colaborador normalmente pode receber Agendamentos.
+
+Ela não representa, isoladamente, os horários efetivamente livres.
+
+A apuração da disponibilidade operacional deverá considerar conjuntamente:
+
+```text
+disponibilidade recorrente do Colaborador
+
+-
+
+eventos de força de trabalho que impeçam sua atuação
+
+-
+
+intervalos ocupados por itens de Serviços de Agendamentos ativos
+
 
 ---
 
@@ -1504,6 +1940,22 @@ agregados_filial_diario
 ├── realizados
 └── em_atendimento
 ```
+### Origem dos indicadores operacionais
+
+Os indicadores agregados deverão preservar a granularidade do fato de negócio que representam.
+
+Assim:
+
+```text
+agendados
+→ quantidade de Agendamentos considerados no período,
+  conforme os estados definidos para o indicador
+
+realizados
+→ quantidade de Atendimentos concluídos no período
+
+em_atendimento
+→ quantidade de Atendimentos que se encontram em execução
 
 Períodos maiores, como semana e mês, poderão ser obtidos pela composição dos agregados diários.
 
@@ -1535,34 +1987,6 @@ users.rede_ref
 users.matriz_ref
 rede_ref
 estabelecimento_ref
-```
-
-servirão de base para implementação das regras de autorização.
-
-A interface não constitui mecanismo suficiente de segurança.
-
-Ocultar páginas, botões ou ações no FlutterFlow não substitui Firestore Security Rules.
-
-A segurança deverá ser validada progressivamente conforme cada jornada for implementada.
-
-Critério:
-
-```text
-Funcionalidade
-+
-Persistência
-+
-Autorização
-+
-Isolamento multi-tenant testado
-=
-Jornada concluída
-```
-
-As regras atuais de desenvolvimento poderão permanecer temporariamente permissivas enquanto os fluxos correspondentes ainda estiverem sendo construídos.
-
-Entretanto, dados privados não deverão chegar à produção com permissões públicas incompatíveis com seu domínio.
-
 ---
 
 # 16. Collections legadas
