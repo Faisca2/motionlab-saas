@@ -18,8 +18,13 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
             .trim()
             .toUpperCase();
 
-        // 3. Aceitar somente o comando CRIAR nesta versão
-        if (comando !== 'CRIAR') {
+        // 3. Validar os comandos disponíveis
+        const comandosPermitidos = [
+            'CRIAR',
+            'INATIVAR'
+        ];
+
+        if (!comandosPermitidos.includes(comando)) {
             return {
                 status: 'DADOS_INVALIDOS',
                 mensagem: 'Comando não implementado.'
@@ -50,7 +55,209 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
                 mensagem: 'Operação permitida somente ao MASTER.'
             };
         }
+        // Encaminhar a operação de inativação
+        if (comando === 'INATIVAR') {
+            const colaboradorId = String(data.colaboradorId || '').trim();
 
+            if (!colaboradorId || colaboradorId.includes('/')) {
+                return {
+                    status: 'DADOS_INVALIDOS',
+                    mensagem: 'Identificador do colaborador inválido.'
+                };
+            }
+
+            // Consultar o colaborador
+            const colaboradorRef = db
+                .collection('colaboradores')
+                .doc(colaboradorId);
+
+            const colaboradorDoc = await colaboradorRef.get();
+
+            // Verificar se o colaborador existe
+            if (!colaboradorDoc.exists) {
+                return {
+                    status: 'DADOS_INVALIDOS',
+                    mensagem: 'Colaborador não encontrado.'
+                };
+            }
+
+            const colaborador = colaboradorDoc.data();
+
+            // Verificar se pertence à rede do MASTER
+            if (
+                !colaborador.rede_ref ||
+                colaborador.rede_ref.path !== usuario.rede_ref.path
+            ) {
+                return {
+                    status: 'PERMISSAO_NEGADA',
+                    mensagem: 'Colaborador não pertence à sua rede.'
+                };
+            }
+
+            // Verificar se o vínculo está ativo
+            if (colaborador.ativo !== true) {
+                return {
+                    status: 'VINCULO_INATIVO',
+                    mensagem: 'Este colaborador já está inativo.'
+                };
+            }
+            // Normalizar o e-mail do colaborador
+            const emailNormalizado = String(colaborador.email || '')
+                .trim()
+                .toLowerCase();
+
+            // Calcular o identificador da reserva
+            const hashEmail = crypto
+                .createHash('sha256')
+                .update(emailNormalizado)
+                .digest('hex');
+
+            const vinculoAtivoId =
+                `${usuario.rede_ref.id}_${hashEmail}`;
+
+            const vinculoAtivoRef = db
+                .collection('vinculos_ativos')
+                .doc(vinculoAtivoId);
+
+            // Consultar a reserva
+            const vinculoAtivoDoc = await vinculoAtivoRef.get();
+
+            // Confirmar que a reserva pertence ao colaborador
+            if (
+                !vinculoAtivoDoc.exists ||
+                !vinculoAtivoDoc.data().colaborador_ref ||
+                vinculoAtivoDoc.data().colaborador_ref.path !== colaboradorRef.path
+            ) {
+                return {
+                    status: 'INCONSISTENCIA_VINCULO',
+                    mensagem:
+                        'A reserva do vínculo ativo não corresponde ao colaborador.'
+                };
+            }
+            // Preparar a transação de inativação
+            try {
+                return await db.runTransaction(async (transaction) => {
+
+                    // 1. Ler os documentos envolvidos na operação
+                    const usuarioAtualDoc =
+                        await transaction.get(usuarioRef);
+
+                    const colaboradorAtualDoc =
+                        await transaction.get(colaboradorRef);
+
+                    const vinculoAtualDoc =
+                        await transaction.get(vinculoAtivoRef);
+                    // 2. Revalidar a autorização do MASTER
+                    if (!usuarioAtualDoc.exists) {
+                        return {
+                            status: 'PERMISSAO_NEGADA',
+                            mensagem: 'Usuário não encontrado.'
+                        };
+                    }
+
+                    const usuarioAtual = usuarioAtualDoc.data();
+
+                    if (
+                        usuarioAtual.role !== 'MASTER' ||
+                        !usuarioAtual.rede_ref ||
+                        usuarioAtual.rede_ref.path !== usuario.rede_ref.path
+                    ) {
+                        return {
+                            status: 'PERMISSAO_NEGADA',
+                            mensagem: 'Usuário sem autorização para inativar.'
+                        };
+                    }
+                    // 3. Revalidar o colaborador
+                    if (!colaboradorAtualDoc.exists) {
+                        return {
+                            status: 'DADOS_INVALIDOS',
+                            mensagem: 'Colaborador não encontrado.'
+                        };
+                    }
+
+                    const colaboradorAtual = colaboradorAtualDoc.data();
+
+                    // Confirmar que pertence à rede do MASTER
+                    if (
+                        !colaboradorAtual.rede_ref ||
+                        colaboradorAtual.rede_ref.path !== usuarioAtual.rede_ref.path
+                    ) {
+                        return {
+                            status: 'PERMISSAO_NEGADA',
+                            mensagem: 'Colaborador não pertence à sua rede.'
+                        };
+                    }
+
+                    // Confirmar que o vínculo permanece ativo
+                    if (colaboradorAtual.ativo !== true) {
+                        return {
+                            status: 'VINCULO_INATIVO',
+                            mensagem: 'Este colaborador já está inativo.'
+                        };
+                    }
+
+                    // Confirmar que o e-mail não mudou durante a operação
+                    if (
+                        String(colaboradorAtual.email || '').trim().toLowerCase()
+                        !== emailNormalizado
+                    ) {
+                        return {
+                            status: 'INCONSISTENCIA_VINCULO',
+                            mensagem: 'O e-mail do vínculo foi alterado.'
+                        };
+                    }
+                    // 4. Revalidar a reserva do vínculo ativo
+                    if (!vinculoAtualDoc.exists) {
+                        return {
+                            status: 'INCONSISTENCIA_VINCULO',
+                            mensagem: 'Reserva do vínculo ativo não encontrada.'
+                        };
+                    }
+
+                    const vinculoAtual = vinculoAtualDoc.data();
+
+                    if (
+                        !vinculoAtual.colaborador_ref ||
+                        vinculoAtual.colaborador_ref.path !== colaboradorRef.path ||
+                        !vinculoAtual.rede_ref ||
+                        vinculoAtual.rede_ref.path !== usuarioAtual.rede_ref.path ||
+                        vinculoAtual.email_normalizado !== emailNormalizado
+                    ) {
+                        return {
+                            status: 'INCONSISTENCIA_VINCULO',
+                            mensagem: 'A reserva não corresponde ao vínculo do colaborador.'
+                        };
+                    }
+                    // 5. Registrar a inativação
+                    const agora =
+                        admin.firestore.FieldValue.serverTimestamp();
+
+                    transaction.update(colaboradorRef, {
+                        ativo: false,
+                        atualizado_em: agora,
+                        atualizado_por_ref: usuarioRef
+                    });
+
+                    // 6. Liberar a reserva do vínculo ativo
+                    transaction.delete(vinculoAtivoRef);
+
+                    // 7. Retornar o resultado
+                    return {
+                        status: 'INATIVADO',
+                        mensagem: 'Colaborador inativado com sucesso.',
+                        colaboradorId: colaboradorRef.id
+                    };
+                });
+
+            } catch (error) {
+                console.error('Falha ao inativar colaborador:', error);
+
+                return {
+                    status: 'ERRO_OPERACIONAL',
+                    mensagem: 'Não foi possível inativar o colaborador.'
+                };
+            }
+        }
         // 6. Validar identificador do estabelecimento
         const estabelecimentoId =
             String(data.estabelecimentoId || '').trim();
@@ -158,8 +365,6 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
                 };
             }
         }
-
-
         // 13. Preparar referências
         const redeRef = usuario.rede_ref;
         const redeId = redeRef.id;
@@ -316,8 +521,5 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
                 mensagem: 'Não foi possível concluir o cadastro.'
             };
         }
-
-
-
     }
 );
