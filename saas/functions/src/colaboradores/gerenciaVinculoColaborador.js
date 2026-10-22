@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
+// NOVA VERSÃO 
 // To avoid deployment errors, do not call admin.initializeApp() in your code
 
 exports.gerenciarVinculoColaborador = functions.https.onCall(
@@ -82,6 +83,13 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
             }
 
             const colaborador = colaboradorDoc.data();
+            console.log('DIAGNOSTICO_INATIVAR', {
+                colaboradorId: colaboradorRef.id,
+                redeColaborador: JSON.stringify(colaborador.rede_ref?.path),
+                redeMaster: JSON.stringify(usuario.rede_ref?.path),
+                referenciasIguais:
+                    colaborador.rede_ref?.path === usuario.rede_ref?.path
+            });
 
             // Verificar se pertence à rede do MASTER
             if (
@@ -121,7 +129,15 @@ exports.gerenciarVinculoColaborador = functions.https.onCall(
 
             // Consultar a reserva
             const vinculoAtivoDoc = await vinculoAtivoRef.get();
-
+            console.log('DIAGNOSTICO_RESERVA', {
+                idProcurado: vinculoAtivoId,
+                reservaEncontrada: vinculoAtivoDoc.exists,
+                colaboradorEsperado: colaboradorRef.path,
+                colaboradorNaReserva:
+                    vinculoAtivoDoc.exists
+                        ? vinculoAtivoDoc.data().colaborador_ref?.path ?? null
+                        : null
+            });
             // Confirmar que a reserva pertence ao colaborador
             if (
                 !vinculoAtivoDoc.exists ||

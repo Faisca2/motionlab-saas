@@ -1,0 +1,57 @@
+# Talleria — Registro de validação do comando INATIVAR
+
+**Data:** 22/10/2026  
+**Componente:** Cloud Function `gerenciarVinculoColaborador`  
+**Operação:** `INATIVAR`  
+**Etapa:** Implementação e testes
+
+## 1. Objetivo
+
+Validar o comportamento da operação `INATIVAR`, especialmente a integridade dos vínculos de colaboradores e a proteção contra inconsistências nos dados.
+
+## 2. Resultados observados
+
+| Cenário | Resultado |
+|---|---|
+| Inativação válida de Raimundo | Sucesso |
+| Nova tentativa de inativar Raimundo | Recusada por vínculo já inativo |
+| Divergência entre referências de rede | Operação recusada |
+| Reserva de vínculo não localizada ou incompatível | Operação recusada |
+| Tentativa de inativar Leonardo com dados inconsistentes | Operação bloqueada; colaborador permaneceu ativo |
+
+## 3. Diagnóstico de Leonardo
+
+Leonardo foi cadastrado por um fluxo anterior à implementação do comando `CRIAR`.
+
+Durante os testes, foram identificadas inconsistências envolvendo referências de rede e a reserva correspondente na coleção `vinculos_ativos`.
+
+A reserva foi criada manualmente, mas parte dos dados utilizados foi copiada de registros produzidos pelo fluxo antigo.
+
+**Decisão:** não investigar o código legado, considerando os refatoramentos e as mudanças conceituais posteriores.
+
+As inconsistências deverão ser regularizadas de forma controlada, sem flexibilizar as validações da Cloud Function.
+
+## 4. Conclusão técnica
+
+Os testes forneceram evidências positivas de consistência da operação `INATIVAR`:
+
+- Validação de pertencimento à rede.
+- Verificação da correspondência entre colaborador e reserva.
+- Bloqueio da operação diante de inconsistências.
+- Controle de tentativas repetidas de inativação.
+- Preservação dos dados quando as validações impedem a operação.
+
+**Situação:** validação funcional positiva nos cenários executados, sem caracterizar cobertura completa de todas as contingências.
+
+## 5. Pendências
+
+- Regularizar os dados legados necessários aos testes.
+- Concluir eventuais cenários de contingência ainda não executados.
+- Remover os logs temporários de diagnóstico.
+- Atualizar a documentação e versionar o código validado no repositório, caso ainda não tenha sido feito.
+
+## 6. Ponto de retomada
+
+Concluir as pendências de `INATIVAR` e, posteriormente, iniciar a revisão das definições da jornada **GERENTE**, respeitando a sequência:
+
+**Definir → Refinar → Modelar → Implementar → Testar.**
